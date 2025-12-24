@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>未選科別--科目名稱 教學大綱</title> 
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500&display=swap" rel="stylesheet">
+
+<style>
+/* 基礎樣式設定 */
+* {
+    font-family: 'Noto Sans TC', sans-serif;
+}
+.header {
+    color: AntiqueWhite;
+    background-color: LightSeaGreen;
+    padding: 10px;
+    margin-bottom: 20px;
+    position: relative; 
+}
+.syllabus-table th {
+    background-color: #f8f9fa;
+    width: 20%;
+    font-weight: bold;
+    color: #000;
+}
+.syllabus-table td, .syllabus-table th {
+    vertical-align: middle;
+    border: 1px dashed DodgerBlue; 
+}
+
+.inner-table td, .inner-table th {
+    border: 1px solid #ccc !important; 
+    padding: 5px; 
+    vertical-align: middle;
+}
+.inner-table th {
+    background-color: #d0d0d0; 
+    text-align: center; 
+    font-weight: bold; 
+    color: #000;
+}
+
+#semesterCreditTable {
+    table-layout: fixed;
+    width: 100%;
+    margin-bottom: 0;
+}
+#semesterCreditTable th, #semesterCreditTable td {
+    width: 14.28%;
+    text-align: center;
+    word-wrap: break-word;
+    font-size: 0.9rem;
+}
+
+.no-edit-td {
+    border: 1px solid #999; 
+}
+.editable-td {
+    color: DodgerBlue;
+}
+.subject-group label {
+    display: inline-block;
+    min-width: 130px; 
+    margin-right: 15px;
+    margin-bottom: 5px;
+}
+.session-count, #totalSessionCount {
+    text-align: center;
+    font-weight: bold;
+}
+.inner-table tfoot th {
+    background-color: #f0f0f0;
+    text-align: right;
+    border: 1px solid #ccc !important; 
+}
+.button-container {
+    text-align: right;
+    margin-top: 10px;
+}
+.header-button {
+    background-color: AntiqueWhite; 
+    color: LightSeaGreen; 
+    border: 2px solid LightSeaGreen; 
+    font-size: 1.25rem; 
+    padding: 0.1rem 0.4rem;
+    cursor: pointer;
+    border-radius: 0.25rem;
+    line-height: 1.2;
+    font-weight: bold; 
+    transition: background-color 0.15s ease-in-out;
+}
+.header-button:hover {
+    background-color: #f5f5dc; 
+}
+
+.seq-col {
+    width: 1%;
+    white-space: nowrap;
+    text-align: center;
+    background-color: #d0d0d0 !important; 
+    font-weight: bold !important;          
+    color: #000 !important;               
+}
+
+/* 提醒文字樣式 */
+.warning-text {
+    color: red;
+    font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container-fluid">
+    <div class="header">
+        <h4>國立頭城高級家事商業職業學校</h4>
+        <div id="title-row" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 id="mainSubjectTitle" style="margin-bottom: 0;">開課科別--科目名稱 教學大綱</h3>
+            <div id="button-group" style="display: flex; align-items: center;">
+                <input type="file" id="fileInput" style="display: none;" accept="text/html">
+                <button id="loadOldFileButton" class="header-button">讀取舊檔</button>
+                <button id="saveFinalButton" class="header-button">儲存結果</button> 
+            </div>
+        </div>
+    </div>
+
+    <table class="table table-bordered syllabus-table">
+        <tbody>
+            <tr>
+                <th>科目名稱（中）</th>
+                <td contenteditable="true" class="editable-td" id="subjectNameCh">科目名稱</td>
+            </tr>
+            <tr>
+                <th>科目名稱（英）</th>
+                <td contenteditable="true" class="editable-td" id="subjectNameEn">Name of the Subject</td>
+            </tr>
+            <tr>
+                <th>科目屬性</th>
+                <td class="no-edit-td" id="subjectTypeContainer">
+                    <label><input type="radio" name="subject_type" value="一般科目"> 一般科目</label>&nbsp;&nbsp;
+                    <label><input type="radio" name="subject_type" value="專業科目"> 專業科目</label>&nbsp;&nbsp;
+                    <label><input type="radio" name="subject_type" value="實習科目" checked> 實習科目</label>
+                </td>
+            </tr>
+            <tr>
+                <th>科目來源</th>
+                <td class="no-edit-td" id="subjectSourceContainer">
+                    <label><input type="radio" name="subject_source" value="群科中心"> 群科中心</label>&nbsp;&nbsp;
+                    <label><input type="radio" name="subject_source" value="學校自行規劃" checked> 學校自行規劃</label>
+                </td>
+            </tr>
+            <tr>
+                <th>適用科別</th>
+                <td class="no-edit-td subject-group" id="deptContainer">
+                    <label><input type="radio" name="applicable_dept"> 流行服飾科</label>
+                    <label><input type="radio" name="applicable_dept"> 幼兒保育科</label>
+                    <label><input type="radio" name="applicable_dept"> 美容科</label>
+                    <label><input type="radio" name="applicable_dept"> 資料處理科</label>
+                    <label><input type="radio" name="applicable_dept"> 電子商務科</label>
+                    <label><input type="radio" name="applicable_dept"> 餐飲管理科</label>
+                    <label><input type="radio" name="applicable_dept"> 觀光事業科</label> 
+                    <label><input type="radio" name="applicable_dept"> 表演藝術科</label>
+                    <label><input type="radio" name="applicable_dept"> 普通科</label>
+                    <label><input type="radio" name="applicable_dept"> 餐飲服務科</label>
+                    <label><input type="radio" name="applicable_dept"> 美髮技術科</label>
+                    <label><input type="radio" name="applicable_dept"> 餐飲技術科</label>
+                </td>
+            </tr>
+            <tr>
+                <th>建議先修科目</th>
+                <td class="no-edit-td" id="prerequisiteContainer">
+                    <label><input type="radio" name="has_prerequisite" value="無" checked> 無</label>
+                    <label><input type="radio" name="has_prerequisite" value="有"> 有</label>
+                    <span id="prerequisiteInputSpan" style="display: none; color: #000;">
+                        ，科目名稱為：<span contenteditable="true" class="editable-td" id="prerequisiteSubjectName" style="display: inline-block; min-width: 120px; border-bottom: 1px solid DodgerBlue;">請輸入科目</span>
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <th>開課學期與學分數</th>
+                <td class="no-edit-td">
+                    <table class="table table-bordered inner-table" id="semesterCreditTable">
+                        <thead>
+                            <tr>
+                                <th style="background-color: transparent;"></th>
+                                <th>第1學年<br>第1學期</th>
+                                <th>第1學年<br>第2學期</th>
+                                <th>第2學年<br>第1學期</th>
+                                <th>第2學年<br>第2學期</th>
+                                <th>第3學年<br>第1學期</th>
+                                <th>第3學年<br>第2學期</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <th style="background-color: #d0d0d0;">學分數</th>
+                                <td contenteditable="true" class="editable-td credit-cell">0</td>
+                                <td contenteditable="true" class="editable-td credit-cell">0</td>
+                                <td contenteditable="true" class="editable-td credit-cell">0</td>
+                                <td contenteditable="true" class="editable-td credit-cell">0</td>
+                                <td contenteditable="true" class="editable-td credit-cell">0</td>
+                                <td contenteditable="true" class="editable-td credit-cell">0</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+            <tr>
+                <th>課綱核心素養</th>
+                <td class="no-edit-td subject-group" id="coreCompetencyContainer">
+                    <p style="font-weight: bold; color: #000;">A.自主行動</p>
+                    <label><input type="checkbox" name="core_competency"> A1.身心素質與自我精進</label>
+                    <label><input type="checkbox" name="core_competency"> A2.系統思考與解決問題</label>
+                    <label><input type="checkbox" name="core_competency"> A3.規劃執行與創新應變</label><br>
+                    <p style="font-weight: bold; color: #000;">B.溝通互動</p>
+                    <label><input type="checkbox" name="core_competency"> B1.符號運用與溝通表達</label>
+                    <label><input type="checkbox" name="core_competency"> B2.科技資訊與媒體素養</label>
+                    <label><input type="checkbox" name="core_competency"> B3.藝術涵養與美感素養</label><br>
+                    <p style="font-weight: bold; color: #000;">C.社會參與</p>
+                    <label><input type="checkbox" name="core_competency"> C1.道德實踐與公民意識</label>
+                    <label><input type="checkbox" name="core_competency"> C2.人際關係與團隊合作</label>
+                    <label><input type="checkbox" name="core_competency"> C3.多元文化與國際理解</label>
+                </td>
+            </tr>
+            <tr>
+                <th>學生圖像</th>
+                <td class="no-edit-td" id="studentImageContainer">
+                    <label><input type="checkbox" name="student_image"> 品格力</label>、
+                    <label><input type="checkbox" name="student_image"> 創新力</label>、
+                    <label><input type="checkbox" name="student_image"> 合作力</label>、
+                    <label><input type="checkbox" name="student_image"> 行動力</label>、
+                    <label><input type="checkbox" name="student_image"> 國際力</label>
+                </td>
+            </tr>
+            <tr>
+                <th>融入議題<br>(請勾選一至三項)</th>
+                <td class="no-edit-td subject-group" id="issueContainer">
+                    <label><input type="checkbox" name="integrated_issue"> 性別平等</label>
+                    <label><input type="checkbox" name="integrated_issue"> 人權教育</label>
+                    <label><input type="checkbox" name="integrated_issue"> 環境教育</label>
+                    <label><input type="checkbox" name="integrated_issue"> 海洋教育</label>
+                    <label><input type="checkbox" name="integrated_issue"> 品德教育</label>
+                    <label><input type="checkbox" name="integrated_issue"> 生命教育</label>
+                    <label><input type="checkbox" name="integrated_issue"> 法治教育</label>
+                    <label><input type="checkbox" name="integrated_issue"> 科技教育</label>
+                    <label><input type="checkbox" name="integrated_issue"> 資訊教育</label>
+                    <label><input type="checkbox" name="integrated_issue"> 能源教育</label>
+                    <label><input type="checkbox" name="integrated_issue"> 安全教育</label>
+                    <label><input type="checkbox" name="integrated_issue"> 防災教育</label>
+                    <label><input type="checkbox" name="integrated_issue"> 家庭教育</label>
+                    <label><input type="checkbox" name="integrated_issue"> 生涯規劃</label>
+                    <label><input type="checkbox" name="integrated_issue"> 多元文化</label>
+                    <label><input type="checkbox" name="integrated_issue"> 閱讀素養</label>
+                    <label><input type="checkbox" name="integrated_issue"> 戶外教育</label>
+                    <label><input type="checkbox" name="integrated_issue"> 國際教育</label>
+                    <label><input type="checkbox" name="integrated_issue"> 原住民族教育</label>
+                </td>
+            </tr>
+            <tr id="majorCompetencyRow">
+                <th>科專業能力與學生圖像符合度</th>
+                <td id="majorCompetenciesContainer" class="no-edit-td"></td>
+            </tr>
+            <tr>
+                <th>教學目標</th>
+                <td contenteditable="true" class="editable-td" id="teachingGoalsTd">
+                    <ol>
+                        <li></li>
+                        <li></li>
+                        <li></li>
+                    </ol>
+                </td>
+            </tr>
+            <tr>
+                <th>主要教學單元</th>
+                <td>
+                    <table class="table table-bordered inner-table" id="syllabusTable">
+                        <thead>
+                            <tr>
+                                <th class="seq-col">項次</th>
+                                <th>單元名稱</th>
+                                <th>內容重點</th>
+                                <th>節數</th>
+                                <th>備註</th>
+                            </tr>
+                        </thead>
+                        <tbody id="unitBody">
+                            <tr>
+                                <td class="seq-col">(一)</td>
+                                <td contenteditable="true" class="editable-td unit-name-cell">單元主要內容</td>
+                                <td contenteditable="true" class="editable-td">內容細項</td>
+                                <td contenteditable="true" class="editable-td session-count">2</td>
+                                <td contenteditable="true" class="editable-td remark-cell"></td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="3">節數總計</th>
+                                <td id="totalSessionCount" class="editable-td">0</td>
+                                <td id="creditMatchWarning"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <div class="button-container">
+                        <button class="btn btn-sm btn-primary" id="addNewUnitRow">新增一列</button>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <th>學習評量</th>
+                <td contenteditable="true" class="editable-td">
+                    <ul>
+                        <li>課堂問答與互動 (10%)</li>
+                        <li>紙筆測驗 (30%)</li>
+                        <li>示範後之實作評核 (40%)</li>
+                        <li>分組競賽與平時操作成績 (20%)</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <th>教學資源</th>
+                <td contenteditable="true" class="editable-td">
+                    <ol>
+                        <li>坊間教科書</li>
+                        <li>自編教材</li>
+                        <li>網路資訊</li>
+                    </ol>
+                </td>
+            </tr>
+            <tr>
+                <th>注意事項</th>
+                <td contenteditable="true" class="editable-td" id="notesTd">
+                    一、教學方法：以多媒體為輔助教學。<br>
+                    二、教學評量：平時成績、期末考。
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="container-fluid" style="text-align: right; margin-bottom: 20px;">
+    <button id="saveFinalButtonBottom" class="header-button">儲存結果</button>
+</div>
+
+<script>
+const seqLabels = ["(一)", "(二)", "(三)", "(四)", "(五)", "(六)", "(七)", "(八)", "(九)", "(十)", "(十一)", "(十二)", "(十三)", "(十四)", "(十五)", "(十六)", "(十七)", "(十八)", "(十九)", "(廿)", "(廿一)", "(廿二)"];
+const warningMsg = "（單元節數不能超過9節）";
+
+const 科專業能力 = {
+    "流行服飾科": ["具備流行服飾類相關基本概念及實用技能", "具備對美之敏銳觀察力，且富含敬業精神的工作態度及職業道德與終身學習的觀念", "具備服飾設計專業知能及設計作品賞析能力", "具備打版專業技能及個人化服裝修改技巧", "具備流行脈動觀察及分析能力", "具備手作及文創商品設計開發與製作能力"],
+    "幼兒保育科": ["具備幼保類科基本概念及實用技能", "具備教案設計活動規劃的能力", "具備全方位助理保育人員的教保能力", "具備家庭服務及照顧服務的能力", "具備主動積極與團隊合作之多元能力"],
+    "美容科": ["具備美容、美髮專業知能與職業道德", "具備美感並培養美髮及彩妝的鑑賞及服務能力", "具備流行時尚產業，整體造型專業技術實作能力及就業能力", "具備敬業的職業道德與樂業的工作態度及終生學習能力"],
+    "資料處理科": ["具備辦公室自動化行政業務處理能力", "具備網頁設計能力", "具備多媒體製作能力", "具備行動裝置應用程式製作能力", "具備相關職場所需職業道德與終身學習能力"],
+    "電子商務科": ["具備商業基礎能力及電子商務經營的專業能力", "具備創意思考、行銷企劃、數位行銷能力", "具備金融理財及會計資訊使用與分析能力", "具備電腦軟體應用及多媒體資訊應用能力", "具備敬業精神的工作態度、職業道德與終身學習的觀念"],
+    "餐飲管理科": ["具備中餐、西餐、烘焙製作能力", "具備飲料調製與創意啟發之能力", "具備餐飲服務技術與溝通能力", "具備基礎餐旅英語會話能力", "具備在地文化與飲食鏈結能力、培育廚藝專業技能", "具備餐飲專業領域，並具有職業道德及終生學習之能力"],
+    "觀光事業科": ["具備餐廳、旅館、會展與運輸業的專業服務能力，並培養終身學習的觀念", "具備國際觀及基礎餐旅英日文會話能力", "具備導覽解說與溝通之能力", "具備在地文化與觀光資源鏈結以及遊程設計之能力", "具備人文素養、建立職業道德及運用科技之能力"],
+    "表演藝術科": ["具備表演藝術相關專業領域之基礎能力", "具備影視幕後工程之應用能力", "具備廣博的人文素養", "具備藝術產業相關的基礎實作能力", "具備表演藝術產業從業終身學習態度與職業道德之涵養", "具備開闊的國際視野及誠信、勤奮、熱忱之工作態度"]
+};
+
+// 新增功能：檢查單行節數並更新備註
+function checkRowSessionWarning(row) {
+    const sessionCell = row.querySelector(".session-count");
+    const remarkCell = row.querySelector(".remark-cell");
+    const count = parseInt(sessionCell.textContent.trim().replace(/\D/g, "")) || 0;
+    
+    // 移除現有的警告 span (如果有)
+    const existingWarning = remarkCell.querySelector(".warning-text");
+    if (existingWarning) {
+        existingWarning.remove();
+    }
+
+    // 如果超過 9 節，新增警告
+    if (count > 9) {
+        const span = document.createElement("span");
+        span.className = "warning-text";
+        span.textContent = warningMsg;
+        remarkCell.appendChild(span);
+    }
+}
+
+function addNewRow() {
+    const tbody = document.getElementById("unitBody");
+    const currentIndex = tbody.rows.length;
+    if (currentIndex >= seqLabels.length) return;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+        <td class="seq-col">${seqLabels[currentIndex]}</td>
+        <td contenteditable="true" class="editable-td unit-name-cell">單元主要內容</td>
+        <td contenteditable="true" class="editable-td">內容細項</td>
+        <td contenteditable="true" class="editable-td session-count">2</td>
+        <td contenteditable="true" class="editable-td remark-cell"></td>
+    `;
+    tbody.appendChild(tr);
+    
+    const sessionCell = tr.querySelector(".session-count");
+    sessionCell.addEventListener("input", () => {
+        calculateTotalSessions();
+        checkRowSessionWarning(tr);
+    });
+    
+    calculateTotalSessions();
+}
+
+function checkAndAutoFillGeneralDept() {
+    const deptRadio = document.querySelector('input[name="applicable_dept"]:checked');
+    if (deptRadio && deptRadio.closest("label").textContent.trim() === "普通科") {
+        const tbody = document.getElementById("unitBody");
+        if (tbody.rows.length < 18) {
+            while (tbody.rows.length < 18) addNewRow();
+        }
+    }
+}
+
+function calculateTotalSessions() {
+    let total = 0;
+    document.querySelectorAll(".session-count").forEach(c => {
+        total += parseInt(c.textContent.trim().replace(/\D/g, "")) || 0;
+    });
+    document.getElementById("totalSessionCount").textContent = total;
+    let credits = 0;
+    document.querySelectorAll(".credit-cell").forEach(td => {
+        credits += parseInt(td.textContent.trim().replace(/\D/g, "")) || 0;
+    });
+    const required = credits * 18;
+    const warn = document.getElementById("creditMatchWarning");
+    warn.innerHTML = (required !== total) ? `<span style="color:red">總節數應為 ${required} 節</span>` : "";
+}
+
+function updateTitles() {
+    const subject = document.getElementById("subjectNameCh").textContent.trim();
+    const r = document.querySelector('input[name="applicable_dept"]:checked');
+    const dept = r ? r.closest("label").textContent.trim() : "未選科別";
+    const title = `${dept}--${subject} 教學大綱`;
+    document.title = title;
+    document.getElementById("mainSubjectTitle").textContent = title;
+    if (!window.isFilesLoading) update科專業能力();
+}
+
+function update科專業能力() {
+    const r = document.querySelector('input[name="applicable_dept"]:checked');
+    const container = document.getElementById("majorCompetenciesContainer");
+    if (!r) { container.innerHTML = "請選取科別"; return; }
+    const dept = r.closest("label").textContent.trim();
+    const list = 科專業能力[dept];
+    if (!list) { container.innerHTML = ""; return; }
+
+    let html = `<table class="table table-bordered inner-table inner-competency-table">
+        <thead><tr><th style="width: 75%;">科專業能力</th><th style="width: 25%;">符合度</th></tr></thead><tbody>`;
+    list.forEach((text, i) => {
+        html += `<tr><td>${text}</td><td style="text-align:center;">
+            <label><input type="radio" name="m_${i}" value="高"> 高</label>
+            <label><input type="radio" name="m_${i}" value="低"> 低</label>
+            <label><input type="radio" name="m_${i}" value="無" checked> 無</label>
+        </td></tr>`;
+    });
+    html += "</tbody></table>";
+    container.innerHTML = html;
+}
+
+function toggleMajorCompetencyVisibility() {
+    const isGeneralType = document.querySelector('input[name="subject_type"]:checked')?.value === '一般科目';
+    const deptRadio = document.querySelector('input[name="applicable_dept"]:checked');
+    const deptName = deptRadio ? deptRadio.closest("label").textContent.trim() : "";
+    const hasData = 科專業能力.hasOwnProperty(deptName);
+    const row = document.getElementById('majorCompetencyRow');
+    if (row) {
+        if (isGeneralType || !hasData) row.style.display = 'none';
+        else row.style.display = 'table-row';
+    }
+}
+
+function saveFinalFile() {
+    const checkedIssues = document.querySelectorAll('input[name="integrated_issue"]:checked');
+    if (checkedIssues.length === 0) { alert("請至少勾選一項融入議題！"); return; }
+    const checkedCoreCompetencies = document.querySelectorAll('input[name="core_competency"]:checked');
+    if (checkedCoreCompetencies.length === 0) { alert("請至少勾選一項課綱核心素養！"); return; }
+    const checkedStudentImages = document.querySelectorAll('input[name="student_image"]:checked');
+    if (checkedStudentImages.length === 0) { alert("請至少勾選一項學生圖像！"); return; }
+
+    const clone = document.documentElement.cloneNode(true);
+    const body = clone.querySelector("body");
+    
+    const originalInputs = document.querySelectorAll('input[type="radio"], input[type="checkbox"]');
+    const cloneInputs = body.querySelectorAll('input[type="radio"], input[type="checkbox"]');
+    originalInputs.forEach((input, i) => { 
+        if (input.checked) cloneInputs[i].setAttribute('checked', 'checked'); 
+        else cloneInputs[i].removeAttribute('checked');
+    });
+
+    const unitRows = body.querySelectorAll("#unitBody tr");
+    unitRows.forEach(row => {
+        const seqText = row.cells[0].textContent.trim();
+        const nameCell = row.cells[1];
+        nameCell.textContent = seqText + nameCell.textContent.trim();
+        row.cells[0].remove();
+    });
+    const unitHeader = body.querySelector("#syllabusTable thead tr");
+    if (unitHeader) unitHeader.cells[0].remove();
+    const unitFooter = body.querySelector("#syllabusTable tfoot tr th");
+    if (unitFooter) unitFooter.setAttribute("colspan", "2");
+
+    const prereqCont = body.querySelector("#prerequisiteContainer");
+    if (prereqCont) {
+        const has = document.querySelector('input[name="has_prerequisite"]:checked').value;
+        prereqCont.innerHTML = (has === '有') ? `有，科目名稱為：${document.getElementById('prerequisiteSubjectName').textContent.trim()}` : "無";
+    }
+
+    if (body.querySelector('#majorCompetencyRow').style.display === 'none') body.querySelector('#majorCompetencyRow').remove();
+
+    body.querySelectorAll("script, button, input[type='file'], .button-container").forEach(el => el.remove());
+    
+    body.querySelectorAll(".syllabus-table td, .syllabus-table th").forEach(el => {
+        el.style.border = "1px solid #999"; 
+        if (el.classList.contains('editable-td')) {
+            el.style.color = "#000";
+        }
+    });
+
+    body.querySelectorAll(".syllabus-table td").forEach(td => {
+        if (td.id === 'majorCompetenciesContainer') {
+            td.querySelectorAll("input").forEach(i => {
+                if (i.checked) i.setAttribute('checked', 'checked');
+                else i.removeAttribute('checked');
+            });
+        } else if (td.querySelector("input")) {
+            let selected = [];
+            td.querySelectorAll("input[checked]").forEach(i => {
+                const labelText = i.closest("label").textContent.trim();
+                if (labelText) selected.push(labelText);
+            });
+            td.innerHTML = selected.join("、 ");
+        }
+        td.removeAttribute("contenteditable");
+    });
+
+    const blob = new Blob([new XMLSerializer().serializeToString(clone)], {type: "text/html"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${clone.querySelector('title').textContent.replace(/\s*教學大綱/g, '').trim()}.html`; 
+    a.click();
+}
+
+function loadOldFile() {
+    const fileInput = document.getElementById('fileInput');
+    fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            window.isFilesLoading = true;
+            const staticDoc = new DOMParser().parseFromString(event.target.result, 'text/html');
+            const getTd = (thText) => Array.from(staticDoc.querySelectorAll('th')).find(th => th.textContent.includes(thText))?.nextElementSibling;
+
+            document.getElementById('subjectNameCh').textContent = getTd('科目名稱（中）')?.textContent || "";
+            document.getElementById('subjectNameEn').textContent = getTd('科目名稱（英）')?.textContent || "";
+            document.getElementById('teachingGoalsTd').innerHTML = getTd('教學目標')?.innerHTML || "";
+            document.getElementById('notesTd').innerHTML = getTd('注意事項')?.innerHTML || "";
+
+            const syncRadio = (containerId, thText) => {
+                const text = getTd(thText)?.textContent.trim() || "";
+                document.querySelectorAll(`#${containerId} label`).forEach(label => {
+                    const radio = label.querySelector('input[type="radio"]');
+                    if (label.textContent.trim() === text) radio.checked = true;
+                });
+            };
+            syncRadio('subjectTypeContainer', '科目屬性');
+            syncRadio('subjectSourceContainer', '科目來源');
+            syncRadio('deptContainer', '適用科別');
+
+            const syncCheckbox = (containerId, thText) => {
+                const text = getTd(thText)?.textContent.trim() || "";
+                const selectedList = text.split(/[、\s]+/).map(s => s.trim());
+                document.querySelectorAll(`#${containerId} label`).forEach(label => {
+                    const cb = label.querySelector('input[type="checkbox"]');
+                    if (cb) cb.checked = selectedList.includes(label.textContent.trim());
+                });
+            };
+            syncCheckbox('coreCompetencyContainer', '課綱核心素養');
+            syncCheckbox('studentImageContainer', '學生圖像');
+            syncCheckbox('issueContainer', '融入議題');
+
+            const oldCompTd = getTd('科專業能力與學生圖像符合度');
+            if (oldCompTd) {
+                const container = document.getElementById('majorCompetenciesContainer');
+                container.innerHTML = oldCompTd.innerHTML;
+                container.querySelectorAll('input').forEach(i => { if (i.hasAttribute('checked')) i.checked = true; });
+            } else { update科專業能力(); }
+
+            const pTd = getTd('建議先修科目');
+            if (pTd) {
+                const text = pTd.textContent.trim();
+                const isHas = text.startsWith('有');
+                const radio = document.querySelector(`input[name="has_prerequisite"][value="${isHas?'有':'無'}"]`);
+                if(radio) radio.checked = true;
+                if (isHas) document.getElementById('prerequisiteSubjectName').textContent = text.split('：')[1] || "";
+                document.getElementById('prerequisiteInputSpan').style.display = isHas ? 'inline' : 'none';
+            }
+
+            const oldCreditTable = getTd('開課學期與學分數')?.querySelector('table');
+            if (oldCreditTable) {
+                const oldCells = oldCreditTable.querySelectorAll('td');
+                const currentCells = document.querySelectorAll('#semesterCreditTable tbody td');
+                currentCells.forEach((cell, idx) => { if (oldCells[idx]) cell.textContent = oldCells[idx].textContent.trim(); });
+            }
+
+            const unitBody = document.getElementById("unitBody");
+            unitBody.innerHTML = "";
+            const staticRows = staticDoc.querySelectorAll("#unitBody tr");
+            staticRows.forEach((sRow, idx) => {
+                let mergedName = sRow.cells[0].textContent.trim();
+                seqLabels.forEach(label => { if (mergedName.startsWith(label)) mergedName = mergedName.replace(label, ""); });
+                const tr = document.createElement("tr");
+                tr.innerHTML = `<td class="seq-col">${seqLabels[idx] || ""}</td>
+                    <td contenteditable="true" class="editable-td unit-name-cell">${mergedName}</td>
+                    <td contenteditable="true" class="editable-td">${sRow.cells[1].textContent.trim()}</td>
+                    <td contenteditable="true" class="editable-td session-count">${sRow.cells[2].textContent.trim()}</td>
+                    <td contenteditable="true" class="editable-td remark-cell">${sRow.cells[3]?.innerHTML || ""}</td>`;
+                unitBody.appendChild(tr);
+                
+                const sessionCell = tr.querySelector(".session-count");
+                sessionCell.addEventListener("input", () => {
+                    calculateTotalSessions();
+                    checkRowSessionWarning(tr);
+                });
+                // 載入時也檢查一次
+                checkRowSessionWarning(tr);
+            });
+
+            window.isFilesLoading = false;
+            updateTitles();
+            toggleMajorCompetencyVisibility();
+            calculateTotalSessions();
+            alert("讀取成功！");
+        };
+        reader.readAsText(file);
+    };
+    fileInput.click();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    updateTitles();
+    calculateTotalSessions();
+    toggleMajorCompetencyVisibility();
+
+    // 初始化第一列的監聽器
+    const firstRow = document.querySelector("#unitBody tr");
+    if(firstRow) {
+        firstRow.querySelector(".session-count").addEventListener("input", () => {
+            calculateTotalSessions();
+            checkRowSessionWarning(firstRow);
+        });
+    }
+
+    document.querySelectorAll('input[name="applicable_dept"], input[name="subject_type"]').forEach(r => r.addEventListener("change", () => { 
+        updateTitles(); 
+        toggleMajorCompetencyVisibility(); 
+        checkAndAutoFillGeneralDept();
+    }));
+
+    document.querySelectorAll('input[name="has_prerequisite"]').forEach(r => r.addEventListener("change", (e) => {
+        document.getElementById('prerequisiteInputSpan').style.display = (e.target.value === '有') ? 'inline' : 'none';
+    }));
+
+    document.getElementById("addNewUnitRow").addEventListener("click", addNewRow);
+    document.getElementById("loadOldFileButton").addEventListener("click", loadOldFile);
+    document.getElementById("saveFinalButton").addEventListener("click", saveFinalFile);
+    document.getElementById("saveFinalButtonBottom").addEventListener("click", saveFinalFile);
+    document.getElementById("subjectNameCh").addEventListener("input", updateTitles);
+    document.querySelectorAll(".credit-cell").forEach(c => c.addEventListener("input", calculateTotalSessions));
+});
+</script>
+</body>
+</html>
