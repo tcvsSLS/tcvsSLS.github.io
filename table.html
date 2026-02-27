@@ -307,8 +307,8 @@
                             <tr><th>單元名稱</th><th>內容重點</th><th>節數</th><th>備註</th></tr>
                         </thead>
                         <tbody id="unitBody">
-                            <tr><td contenteditable="true" class="editable-td">單元一</td><td contenteditable="true" class="editable-td">細部說明</td><td contenteditable="true" class="editable-td session-count">9</td><td contenteditable="true" class="editable-td">第1學期</td></tr>
-                            <tr><td contenteditable="true" class="editable-td">單元二</td><td contenteditable="true" class="editable-td">細部說明</td><td contenteditable="true" class="editable-td session-count">9</td><td contenteditable="true" class="editable-td"></td></tr>
+                            <tr><td contenteditable="true" class="editable-td">(一)單元名稱</td><td contenteditable="true" class="editable-td">細部說明</td><td contenteditable="true" class="editable-td session-count">9</td><td contenteditable="true" class="editable-td">第1學期</td></tr>
+                            <tr><td contenteditable="true" class="editable-td">(二)單元名稱</td><td contenteditable="true" class="editable-td">細部說明</td><td contenteditable="true" class="editable-td session-count">9</td><td contenteditable="true" class="editable-td"></td></tr>
                         </tbody>
                         <tfoot>
                             <tr>
@@ -516,8 +516,8 @@ function addNewRow() {
     const tbody = document.getElementById("unitBody");
     const tr = document.createElement("tr");
     tr.innerHTML = `
-        <td contenteditable="true" class="editable-td">請輸入單元名稱</td>
-        <td contenteditable="true" class="editable-td">請輸入內容重點</td>
+        <td contenteditable="true" class="editable-td">(項次)單元名稱</td>
+        <td contenteditable="true" class="editable-td">細部說明</td>
         <td contenteditable="true" class="editable-td session-count">1</td>
         <td contenteditable="true" class="editable-td"></td>
     `;
