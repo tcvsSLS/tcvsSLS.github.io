@@ -20,7 +20,7 @@ showNumber = 0;
 // MP3 base64 encode tools
 // 		https://codepen.io/xewl/pen/NjyRJx
 //
-soundFilename = 'amachan2.mp3';
+soundFilename = 'amachan1.mp3';
 
 // paper 圖檔的目錄路徑(相對於程式所在的目錄)
 mediaFolder = 'data';
