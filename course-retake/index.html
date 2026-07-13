@@ -1,1 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/js/bootstrap.bundle.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500&display=swap" rel="stylesheet">
 
+<style>
+  *{font-family: 'Noto Sans TC', sans-serif;}
+  .header{ color:AntiqueWhite; background-color:LightSeaGreen; padding: 15px; border-radius: 5px; }
+  .work-zone { margin-top: 20px; padding: 15px; border: 1px dashed #ccc; background-color: #f9f9f9; border-radius: 5px; }
+  .student-card { background-color: #e8f4f8; border-left: 5px solid LightSeaGreen; padding: 15px; margin-bottom: 20px; border-radius: 0 5px 5px 0; }
+  
+  /* 💡 登入區塊專用樣式 */
+  .login-card { max-width: 450px; margin: 30px auto; padding: 25px; border: 1px solid #ddd; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-radius: 10px; background-color: #ffffff; }
+
+  /* 手機版立體卡片設計 */
+  .mobile-course-card {
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    transition: transform 0.2s;
+  }
+  .mobile-course-card:active { transform: scale(0.98); }
+  .card-label { color: #6c757d; font-size: 0.85rem; width: 80px; display: inline-block; }
+  .card-value { color: #212529; font-weight: 500; }
+  
+  /* 大小螢幕顯示與隱藏 */
+  @media (max-width: 767.98px) {
+    .desktop-view { display: none !important; } 
+    .mobile-view { display: block !important; }  
+  }
+  @media (min-width: 768px) {
+    .desktop-view { display: block !important; }
+    .mobile-view { display: none !important; }   
+  }
+  .form-check-input { width: 1.25em; height: 1.25em; cursor: pointer; }
+</style>
+</head>
+
+<body>
+<div class="container-fluid text-start my-3">
+  <div class="header">
+    <h4>國立頭城高級家事商業職業學校<BR>重補修作業系統</h4>
+    <div style="text-align: right; font-size: 0.9rem;" class="mt-2">系統維護：教務處實驗研究組<BR>校內分機111</div>
+  </div>
+  
+  <!-- 🌟 1. 簡易身份驗證登入區塊 -->
+  <div id="login-zone" class="login-card">
+    <h5 class="text-center mb-3" style="font-weight: bold; color: LightSeaGreen;">學生身分驗證登入</h5>
+    <div class="mb-3">
+      <label for="input-stu-id" class="form-label font-weight-bold">學生學號：</label>
+      <input type="text" class="form-control form-control-lg" id="input-stu-id" placeholder="請輸入您的學號 (如: 113019)" required>
+    </div>
+    <div class="mb-4">
+      <label for="input-id-card" class="form-label">身分證字號後 4 碼：</label>
+      <input type="password" class="form-control form-control-lg" id="input-id-card" placeholder="請輸入身分證後四碼" maxlength="4" required>
+    </div>
+    <button type="button" id="btn-login" class="btn btn-primary btn-lg w-100" onclick="verifyAndFetchData()">驗證身分並登入</button>
+    <div id="login-error" class="alert alert-danger mt-3 d-none" role="alert"></div>
+  </div>
+  
+  <!-- 🌟 2. 系統操作工作區 (預設隱藏 d-none) -->
+  <div id="workarea-zone" class="work-zone d-none">
+    <!-- 載入中提示 -->
+    <div id="loading" class="text-center my-4 d-none">
+      <div class="spinner-border text-success" role="status"><span class="visually-hidden">Loading...</span></div>
+      <p class="mt-2 text-muted" id="loading-text">正在加載科目資料，請稍候...</p>
+    </div>
+
+    <!-- 錯誤訊息 -->
+    <div id="error-msg" class="alert alert-danger d-none" role="alert"></div>
+
+    <!-- 主要內容區 -->
+    <div id="main-content" class="d-none">
+      <div class="student-card">
+        <h5 class="mb-2 text-dark" style="font-weight: bold;">學生基本資料</h5>
+        <div class="row g-2">
+          <div class="col-6 col-md-3"><strong>學號：</strong><span id="stu-id"></span></div>
+          <div class="col-6 col-md-3"><strong>班級：</strong><span id="stu-class"></span></div>
+          <div class="col-6 col-md-3"><strong>座號：</strong><span id="stu-seat"></span></div>
+          <div class="col-6 col-md-3"><strong>姓名：</strong><span id="stu-name"></span></div>
+        </div>
+      </div>
+
+      <h5 class="text-secondary mb-3" style="font-weight: bold;">您的重補修科目清單</h5>
+      
+      <!-- 電腦版視圖 -->
+      <div class="table-responsive desktop-view">
+        <table class="table table-striped table-hover align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th style="width: 100px;" class="text-center">勾選申請</th>
+              <th>科目</th>
+              <th>學分</th>
+              <th>狀態</th>
+              <th>取得學分</th>
+              <th>歸屬年級</th>
+              <th>歸屬學期</th>
+            </tr>
+          </thead>
+          <tbody id="course-table-body"></tbody>
+        </table>
+      </div>
+
+      <!-- 手機版視圖 -->
+      <div id="course-card-container" class="mobile-view d-none"></div>
+
+      <!-- 查無資料 -->
+      <div id="no-data-msg" class="alert alert-warning d-none">在本學期班級資料中，查無您的重補修科目。</div>
+      
+      <!-- 送出按鈕 -->
+      <div class="text-end mt-4 mb-3">
+        <button type="button" id="btn-submit" class="btn btn-success btn-lg w-100 w-md-auto" onclick="submitRegData()">確認送出異動</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 💡 請在這裡替換成您在 GAS 重新部署後取得的最新「網頁應用程式網址」
+  const BACKEND_API_URL = "https://script.google.com/macros/s/您的GAS部署ID/exec"; 
+
+  let cachedStudentInfo = null; 
+  let originalState = {}; 
+
+  // 💡 自動代入學生上次登入成功的帳號資訊（優化填寫體驗）
+  window.addEventListener('load', function() {
+    const savedId = sessionStorage.getItem('saved_stu_id');
+    const savedCard = sessionStorage.getItem('saved_id_card');
+    if (savedId && savedCard) {
+      document.getElementById('input-stu-id').value = savedId;
+      document.getElementById('input-id-card').value = savedCard;
+    }
+  });
+
+  // 💡 登入驗證與資料獲取
+  function verifyAndFetchData() {
+    const stuId = document.getElementById('input-stu-id').value.trim();
+    const idCard = document.getElementById('input-id-card').value.trim();
+    const loginBtn = document.getElementById('btn-login');
+    const loginError = document.getElementById('login-error');
+
+    if (!stuId || !idCard) { alert("學號與身分證後四碼皆為必填！"); return; }
+    if (idCard.length !== 4 || isNaN(idCard)) { alert("身分證後四碼必須為 4 位數字。"); return; }
+
+    loginBtn.disabled = true;
+    loginBtn.innerText = "正在驗證身分...";
+    loginError.classList.add('d-none');
+
+    // 顯示下載狀態
+    document.getElementById('workarea-zone').classList.remove('d-none');
+    document.getElementById('loading').classList.remove('d-none');
+    document.getElementById('loading-text').innerText = "正在向伺服器驗證身分，請稍候...";
+    document.getElementById('main-content').classList.add('d-none');
+    document.getElementById('error-msg').classList.add('d-none');
+
+    fetch(BACKEND_API_URL, {
+      method: "POST",
+      body: JSON.stringify({ 
+        action: "getStudentData",
+        studentId: stuId,
+        idCard4: idCard
+      })
+    })
+    .then(response => response.json())
+    .then(result => {
+      loginBtn.disabled = false;
+      loginBtn.innerText = "驗證身分並登入";
+      
+      if (!result.success) {
+        document.getElementById('loading').classList.add('d-none');
+        loginError.innerText = result.msg;
+        loginError.classList.remove('d-none');
+        return;
+      }
+      
+      // 驗證成功，隱藏登入區，存入快取以免重新整理要重打
+      sessionStorage.setItem('saved_stu_id', stuId);
+      sessionStorage.setItem('saved_id_card', idCard);
+      document.getElementById('login-zone').classList.add('d-none');
+      
+      onSuccess(result);
+    })
+    .catch(error => {
+      loginBtn.disabled = false;
+      loginBtn.innerText = "驗證身分並登入";
+      document.getElementById('loading').classList.add('d-none');
+      loginError.innerText = "網路連線失敗，請確認網路或 API 網址是否正確。";
+      loginError.classList.remove('d-none');
+    });
+  }
+
+  function onSuccess(result) {
+    document.getElementById('loading').classList.add('d-none');
+    
+    document.getElementById('stu-id').innerText = result.studentInfo.id;
+    document.getElementById('stu-class').innerText = result.studentInfo.className;
+    document.getElementById('stu-seat').innerText = result.studentInfo.seatNo;
+    document.getElementById('stu-name').innerText = result.studentInfo.name;
+    
+    cachedStudentInfo = result.studentInfo; 
+
+    const tbody = document.getElementById('course-table-body');
+    const cardContainer = document.getElementById('course-card-container');
+    
+    tbody.innerHTML = ''; 
+    cardContainer.innerHTML = '';
+
+    if (result.courseList.length === 0) {
+      document.getElementById('no-data-msg').classList.remove('d-none');
+      document.getElementById('btn-submit').classList.add('d-none');
+    } else {
+      document.getElementById('no-data-msg').classList.add('d-none');
+      document.getElementById('btn-submit').classList.remove('d-none');
+      
+      result.courseList.forEach(function(course) {
+        const isChecked = course.reg === "已登記";
+        originalState[course.rowNum] = isChecked;
+        
+        // 產生電腦版表格
+        const tableRow = `<tr>
+          <td class="text-center">
+            <input type="checkbox" class="form-check-input course-checkbox" data-row="${course.rowNum}" data-subject="${course.subject}" data-credit="${course.credit}" ${isChecked ? "checked" : ""}>
+          </td>
+          <td style="font-weight:bold;">${course.subject}</td>
+          <td>${course.credit}</td>
+          <td><span class="badge ${course.status === '必修' ? 'bg-danger' : 'bg-secondary'}">${course.status}</span></td>
+          <td>${course.get}</td>
+          <td>${course.grade}</td>
+          <td>${course.semester}</td>
+        </tr>`;
+        tbody.insertAdjacentHTML('beforeend', tableRow);
+
+        // 產生手機版卡片
+        const mobileCard = `
+          <div class="mobile-course-card" style="${isChecked ? 'border-left: 5px solid #FFC107; background-color: #FFFDE7;' : ''}">
+            <div class="d-flex justify-content-between align-items-start mb-2 pb-2" style="border-bottom: 1px solid #eee;">
+              <div style="font-size: 1.1rem; font-weight: bold; color: LightSeaGreen;">${course.subject}</div>
+              <div class="form-check">
+                <input type="checkbox" class="form-check-input course-checkbox" data-row="${course.rowNum}" data-subject="${course.subject}" data-credit="${course.credit}" ${isChecked ? "checked" : ""}>
+                <label class="form-check-label small text-muted ms-1">${isChecked ? '已登記' : '欲申請'}</label>
+              </div>
+            </div>
+            <div class="row g-1">
+              <div class="col-6"><span class="card-label">學分數:</span><span class="card-value">${course.credit}</span></div>
+              <div class="col-6"><span class="card-label">修別狀態:</span><span class="badge ${course.status === '必修' ? 'bg-danger' : 'bg-secondary'}">${course.status}</span></div>
+              <div class="col-6"><span class="card-label">取得學分:</span><span class="card-value">${course.get || '無'}</span></div>
+              <div class="col-6"><span class="card-label">歸屬學期:</span><span class="card-value">${course.grade}年級第${course.semester}學期</span></div>
+            </div>
+          </div>`;
+        cardContainer.insertAdjacentHTML('beforeend', mobileCard);
+      });
+
+      bindCheckboxSync();
+      document.getElementById('main-content').classList.remove('d-none');
+    }
+  }
+
+  function bindCheckboxSync() {
+    document.addEventListener('change', function(e) {
+      if (e.target && e.target.classList.contains('course-checkbox')) {
+        const rowNum = e.target.getAttribute('data-row');
+        const isChecked = e.target.checked;
+        const allSameRows = document.querySelectorAll(`.course-checkbox[data-row="${rowNum}"]`);
+        allSameRows.forEach(cb => { cb.checked = isChecked; });
+      }
+    });
+  }
+
+  function submitRegData() {
+    const btn = document.getElementById('btn-submit');
+    btn.disabled = true;
+    btn.innerText = "正在提交異動...";
+
+    const checkboxes = document.querySelectorAll('.desktop-view .course-checkbox');
+    
+    let addedCourses = [];   
+    let removedCourses = []; 
+    let currentTotalSelected = 0; 
+
+    checkboxes.forEach(cb => {
+      const rowNum = cb.getAttribute('data-row');
+      const subject = cb.getAttribute('data-subject');
+      const credit = cb.getAttribute('data-credit');
+      const isCurrentlyChecked = cb.checked;
+      const wasOriginallyChecked = originalState[rowNum];
+
+      if (isCurrentlyChecked) { currentTotalSelected++; }
+
+      if (!wasOriginallyChecked && isCurrentlyChecked) {
+        addedCourses.push({ rowNum: rowNum, subject: subject, credit: credit });
+      } else if (wasOriginallyChecked && !isCurrentlyChecked) {
+        removedCourses.push({ rowNum: rowNum, subject: subject, credit: credit });
+      }
+    });
+
+    const totalChanges = addedCourses.length + removedCourses.length;
+
+    if (totalChanges === 0) {
+      alert("您沒有修改任何勾選狀態，無需送出。");
+      btn.disabled = false;
+      btn.innerText = "確認送出異動";
+      return;
+    }
+
+    alert(`您申請了 ${currentTotalSelected} 個科目，詳細資料將寄送至您的電子郵件信箱`);
+
+    fetch(BACKEND_API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "submitRegistration",
+        studentInfo: cachedStudentInfo,
+        addedCourses: addedCourses,
+        removedCourses: removedCourses
+      })
+    })
+    .then(response => response.json())
+    .then(response => {
+      if(response.success) {
+        document.getElementById('main-content').classList.add('d-none');
+        document.getElementById('loading').classList.remove('d-none');
+        document.getElementById('loading-text').innerText = "資料異動成功！正在重新載入最新狀態...";
+        
+        // 成功後重整網頁，重新讀取最新課表
+        location.reload(); 
+      } else {
+        btn.disabled = false;
+        btn.innerText = "確認送出異動";
+        alert("更新失敗：\n" + response.msg);
+      }
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.innerText = "確認送出異動";
+      alert("網路連線失敗，請稍後再試：\n" + err.message);
+    });
+  }
+
+  function showError(msg) {
+    const errorDiv = document.getElementById('error-msg');
+    errorDiv.innerText = msg;
+    errorDiv.classList.remove('d-none');
+  }
+</script>
+</body>
+</html>
