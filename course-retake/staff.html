@@ -1,359 +1,206 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>國立頭城家商 — 重補修網路申請系統</title>
-  <!-- 引入 Bootstrap 5 CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    body {
-      background-color: #f8f9fa;
-      font-family: "Microsoft JhengHei", sans-serif;
-    }
-    .main-card {
-      border-top: 5px solid #20b2aa;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    }
-    .table-container {
-      background-color: #ffffff;
-      border-radius: 6px;
-      padding: 15px;
-      box-shadow: inset 0 0 8px rgba(0,0,0,0.02);
-    }
-    .status-badge {
-      font-size: 0.85rem;
-    }
-    /* 依據原本試算表邏輯：黃底紅字代表已登記/已加選 */
-    .row-registered {
-      background-color: #ffff00 !important;
-      color: #ff0000 !important;
-    }
-    /* 讀取中遮罩 */
-    #loading-overlay {
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(255, 255, 255, 0.8);
-      z-index: 9999;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/js/bootstrap.bundle.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght=500&display=swap" rel="stylesheet">
+
+<style>
+*{font-family: 'Noto Sans TC', sans-serif;}
+.header{
+  color:AntiqueWhite;
+  background-color:LightSeaGreen;
+  padding: 10px;
+}
+.work-zone {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px dashed #ccc;
+  background-color: #f9f9f9;
+  border-radius: 5px;
+}
+.upload-box {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  border-radius: 5px;
+}
+</style>
 </head>
-<body>
 
-  <!-- 讀取中動畫遮罩 -->
-  <div id="loading-overlay" class="d-none">
-    <div class="text-center">
-      <div class="spinner-border text-info" role="status" style="width: 3rem; height: 3rem;"></div>
-      <div class="mt-2 fw-bold text-secondary">系統處理中，請稍候...</div>
-    </div>
+<body onload="initSystem()">
+
+<div class="container-fluid">
+  <div class="header">
+    <h4>國立頭城高級家事商業職業學校<BR>115學年度第1學期<BR>重補修作業系統</h4>
+    <div style="text-align: right;">系統維護：教務處實驗研究組<BR>校內分機111或E-mail：tcvschss@tcvs.ilc.edu.tw</div>
   </div>
-
-  <div class="container py-4" style="max-width: 900px;">
-    <!-- 頂部標題區 -->
-    <div class="d-flex justify-content-between align-items-end border-bottom pb-2 mb-4">
-      <div>
-        <h2 class="fw-bold text-dark m-0">重補修網路申請系統</h2>
-        <small class="text-muted">國立頭城高級家事商業職業學校 — 教務處</small>
+  
+  <div name="workarea" class="work-zone">
+    <h5>資料準備工作</h5>
+    <button id="btnConvert" class="btn btn-primary" onclick="handleConvert()">
+      建立可選修資料表
+    </button>
+    <button id="btnConsolidate" class="btn btn-success ms-2" onclick="handleConsolidate()">
+      整合申請資料
+    </button>
+    
+    <div id="uploadArea" class="upload-box" style="display: none;">
+      <h6 class="text-warning-emphasis fw-bold">請先上傳原始檔案：</h6>
+      <div class="input-group my-2">
+        <input type="file" class="form-control" id="excelFileSelector" accept=".xlsx">
+        <button class="btn btn-warning" type="button" id="btnUpload" onclick="handleUpload()">上傳檔案</button>
       </div>
-      <!-- 聯絡資訊改為電子郵件 -->
-      <div style="text-align: right; font-size: 0.85rem; line-height: 1.4;" class="text-secondary">
-        系統維護：教務處實驗研究組<br>
-        電子郵件：<a href="mailto:tcvschss@tcvs.ilc.edu.tw">tcvschss@tcvs.ilc.edu.tw</a>
-      </div>
+      <small class="text-muted">※ 註：無論您選擇的檔名為何，系統皆會自動將其存為「班級明細表.xlsx」。</small>
     </div>
 
-    <!-- 第一步：登入驗證區塊 -->
-    <div class="card main-card mb-4">
-      <div class="card-header bg-white fw-bold text-secondary">🔑 學生身分驗證</div>
-      <div class="card-body">
-        <form id="login-form" onsubmit="event.preventDefault(); fetchStudentData();">
-          <div class="row g-3 align-items-center">
-            <div class="col-md-4">
-              <label for="student-id" class="form-label fw-bold">學號</label>
-              <input type="text" class="form-html form-control" id="student-id" placeholder="例如: 112001" required>
-            </div>
-            <div class="col-md-5">
-              <label for="id-card-4" class="form-label fw-bold">身分證字號（後四碼）</label>
-              <input type="password" class="form-control" id="id-card-4" maxlength="4" placeholder="請輸入後 4 碼數字" required>
-            </div>
-            <div class="col-md-3 pt-md-4">
-              <button type="submit" class="btn btn-info text-white w-100 fw-bold">查詢重補修科目</button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- 錯誤或防呆訊息提示區 -->
-    <div id="no-data-msg" class="alert alert-warning d-none fw-bold text-center my-3"></div>
-
-    <!-- 第二步：學生基本資料與科目清單（預設隱藏） -->
-    <div id="student-info-block" class="card main-card mb-4 d-none">
-      <div class="card-header bg-white fw-bold text-secondary">👤 學生基本資料</div>
-      <div class="card-body bg-light">
-        <div class="row g-3 text-dark">
-          <div class="col-6 col-sm-3"><strong>班級：</strong><span id="info-class">-</span></div>
-          <div class="col-6 col-sm-3"><strong>座號：</strong><span id="info-seat">-</span></div>
-          <div class="col-6 col-sm-3"><strong>姓名：</strong><span id="info-name">-</span></div>
-          <div class="col-6 col-sm-3"><strong>學號：</strong><span id="info-id">-</span></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 第三步：科目異動表格（預設隱藏） -->
-    <div id="course-table-block" class="card main-card d-none">
-      <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <span class="fw-bold text-secondary">📚 可重補修之科目清單</span>
-        <span class="badge bg-secondary p-2 status-badge">提示：勾選即可加選，取消勾選即為退選</span>
-      </div>
-      <div class="card-body">
-        <div class="table-container table-responsive mb-3">
-          <table class="table table-bordered align-middle m-0" id="course-table">
-            <thead class="table-light text-secondary">
-              <tr>
-                <th style="width: 70px;" class="text-center">選取</th>
-                <th>年級/學期</th>
-                <th>科目名稱</th>
-                <th style="width: 80px;" class="text-center">學分</th>
-                <th>原課堂成績狀態</th>
-                <th style="width: 120px;" class="text-center">目前申請狀況</th>
-              </tr>
-            </thead>
-            <tbody id="course-tbody">
-              <!-- 動態渲染欄位 -->
-            </tbody>
-          </table>
-        </div>
-
-        <!-- 按鈕操作區 -->
-        <div class="d-flex justify-content-between align-items-center mt-4 border-top pt-3">
-          <div class="text-secondary small fw-bold">
-            ※ 送出更新後，系統會自動同步至班級名冊並寄送確認信到您的學校信箱。
-          </div>
-          <button type="button" class="btn btn-success px-4 fw-bold shadow-sm" onclick="submitRegData()">
-            💾 確認並送出異動登記
-          </button>
-        </div>
-      </div>
-    </div>
-
+    <div id="statusMessage" class="mt-3 text-muted" style="display:none;"></div>
   </div>
+</div>
 
-  <!-- JavaScript 邏輯控制區 -->
-  <script>
-    // ⚠️ 請在此處替換為組長您部署後獲得的最新 Google Web App URL ⚠️
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx_你的最新API網址/exec";
+<script>
+// 🌟 重要設定：請在此處替換為你「部署 Web 應用程式」後產生的網址
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/XXXXXX_你的網址編碼_XXXXXX/exec";
 
-    // 全域變數，紀錄當前查詢到的學生與科目狀態
-    let globalStudentInfo = null;
-    let globalOriginalCourses = [];
+function initSystem() {
+  console.log("GitHub 獨立前端初始化完成");
+}
 
-    // 開啟/關閉讀取遮罩
-    function toggleLoading(show) {
-      const overlay = document.getElementById("loading-overlay");
-      if (show) overlay.classList.remove("d-none");
-      else overlay.classList.add("d-none");
+/**
+ * 核心通訊網路：利用瀏覽器標準 fetch API 將指令拋送給 GAS 後端
+ * 註：Content-Type 採用 text/plain 可以完美繞過跨網域 (CORS) 複雜預檢，提升連線穩定度
+ */
+function callBackendAPI(payload, successCallback, failureCallback) {
+  fetch(GAS_WEB_APP_URL, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
     }
+  })
+  .then(res => {
+    if (!res.ok) throw new Error("網路回應不正常");
+    return res.json();
+  })
+  .then(data => successCallback(data))
+  .catch(err => failureCallback(err));
+}
 
-    /**
-     * 1. 查詢學生重補修科目資料
-     */
-    function fetchStudentData() {
-      const studentId = document.getElementById("student-id").value.trim();
-      const idCard4 = document.getElementById("id-card-4").value.trim();
-      const msgDiv = document.getElementById("no-data-msg");
+// 處理「建立可選修資料表」按鈕點擊
+function handleConvert() {
+  const btnConvert = document.getElementById("btnConvert");
+  const btnConsolidate = document.getElementById("btnConsolidate");
+  const statusDiv = document.getElementById("statusMessage");
+  const uploadArea = document.getElementById("uploadArea");
+  
+  btnConvert.disabled = true;
+  btnConsolidate.disabled = true;
+  uploadArea.style.display = "none"; 
+  statusDiv.style.display = "block";
+  statusDiv.className = "mt-3 text-muted";
+  statusDiv.innerHTML = '<span class="spinner-border spinner-border-sm text-primary" role="status"></span> 正在檢查並轉換檔案，請稍候...';
 
-      if (!studentId || !idCard4) return;
-
-      // 重置畫面狀態
-      msgDiv.classList.add("d-none");
-      document.getElementById("student-info-block").classList.add("d-none");
-      document.getElementById("course-table-block").classList.add("d-none");
-
-      toggleLoading(true);
-
-      fetch(WEB_APP_URL, {
-        method: "POST",
-        body: JSON.stringify({
-          action: "getStudentData",
-          studentId: studentId,
-          idCard4: idCard4
-        })
-      })
-      .then(response => response.json())
-      .then(data => {
-        toggleLoading(false);
-        if (data.success) {
-          // 💡 核心變更：若後端判斷該生在班級表中完全無任何重補修資料
-          if (data.isEmpty) {
-            msgDiv.innerText = "沒有可重補修的科目。";
-            msgDiv.classList.remove("alert-danger");
-            msgDiv.classList.add("alert-warning");
-            msgDiv.classList.remove("d-none");
-            return;
-          }
-
-          // 正常有資料，暫存全域變數
-          globalStudentInfo = data.studentInfo;
-          globalOriginalCourses = data.courseList;
-
-          // 渲染學生個人資料
-          document.getElementById("info-class").innerText = data.studentInfo.className;
-          document.getElementById("info-seat").innerText = data.studentInfo.seatNo;
-          document.getElementById("info-name").innerText = data.studentInfo.name;
-          document.getElementById("info-id").innerText = data.studentInfo.id;
-          document.getElementById("student-info-block").classList.remove("d-none");
-
-          // 渲染重補修科目表格
-          renderCourseTable(data.courseList);
-          document.getElementById("course-table-block").classList.remove("d-none");
-        } else {
-          // 驗證失敗或其他錯誤
-          msgDiv.innerText = data.msg;
-          msgDiv.classList.remove("alert-warning");
-          msgDiv.classList.add("alert-danger");
-          msgDiv.classList.remove("d-none");
-        }
-      })
-      .catch(err => {
-        toggleLoading(false);
-        msgDiv.innerText = "連線發生錯誤，請稍後再試或洽實驗研究組（電子郵件：tcvschss@tcvs.ilc.edu.tw）。";
-        msgDiv.classList.add("alert-danger");
-        msgDiv.classList.remove("d-none");
-        console.error(err);
-      });
+  callBackendAPI({ action: "convert" }, function(response) {
+    btnConvert.disabled = false;
+    btnConsolidate.disabled = false;
+    if (response.success) {
+      statusDiv.className = "mt-3 text-success fw-bold";
+      statusDiv.innerHTML = "✓ " + response.message;
+    } else {
+      statusDiv.className = "mt-3 text-danger fw-bold";
+      statusDiv.innerHTML = "❌ " + response.message;
+      if (response.fileNotFound) { uploadArea.style.display = "block"; }
     }
+  }, function(error) {
+    btnConvert.disabled = false;
+    btnConsolidate.disabled = false;
+    statusDiv.className = "mt-3 text-danger fw-bold";
+    statusDiv.innerHTML = "❌ 系統連線錯誤: " + error.message;
+  });
+}
 
-    /**
-     * 2. 動態渲染科目表格
-     */
-    function renderCourseTable(courses) {
-      const tbody = document.getElementById("course-tbody");
-      tbody.innerHTML = "";
+// 處理「整合申請資料」按鈕點擊
+function handleConsolidate() {
+  const btnConvert = document.getElementById("btnConvert");
+  const btnConsolidate = document.getElementById("btnConsolidate");
+  const statusDiv = document.getElementById("statusMessage");
+  const uploadArea = document.getElementById("uploadArea");
+  
+  btnConvert.disabled = true;
+  btnConsolidate.disabled = true;
+  uploadArea.style.display = "none";
+  statusDiv.style.display = "block";
+  statusDiv.className = "mt-3 text-muted";
+  statusDiv.innerHTML = '<span class="spinner-border spinner-border-sm text-success" role="status"></span> 正在掃描各班級資料表並整合申請資料，請稍候...';
 
-      courses.forEach((course, index) => {
-        const tr = document.createElement("tr");
-        
-        // 判斷是否為原先就已經登記（黃底紅字）的科目
-        const isRegistered = course.reg === "已登記";
-        if (isRegistered) {
-          tr.className = "row-registered";
-        }
-
-        // 核取方塊：若原本已登記，預設勾選
-        const checkedAttr = isRegistered ? "checked" : "";
-
-        tr.innerHTML = `
-          <td class="text-center">
-            <input type="checkbox" class="form-check-input course-checkbox" 
-                   data-index="${index}" ${checkedAttr} style="transform: scale(1.2); cursor: pointer;">
-          </td>
-          <td>${course.grade}年級 / ${course.semester}學期</td>
-          <td class="fw-bold">${course.subject}</td>
-          <td class="text-center">${course.credit}</td>
-          <td>
-            <span class="badge bg-secondary status-badge me-1">${course.status}</span>
-            <span class="text-muted small">(學期成績: ${course.get})</span>
-          </td>
-          <td class="text-center fw-bold text-nowrap" id="status-text-${index}">
-            ${isRegistered ? "★ 已登記申請" : "—"}
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      // 監聽 Checkbox 點擊事件，動態預覽表格底色變更
-      document.querySelectorAll(".course-checkbox").forEach(chk => {
-        chk.addEventListener("change", function() {
-          const idx = this.getAttribute("data-index");
-          const targetTr = this.closest("tr");
-          const statusTd = document.getElementById(`status-text-${idx}`);
-          const originalReg = courses[idx].reg === "已登記";
-
-          if (this.checked) {
-            targetTr.classList.add("row-registered");
-            statusTd.innerText = originalReg ? "★ 已登記申請" : "＋ 本次待加選";
-          } else {
-            targetTr.classList.remove("row-registered");
-            statusTd.innerText = originalReg ? "－ 本次待退選" : "—";
-          }
-        });
-      });
+  callBackendAPI({ action: "consolidate" }, function(response) {
+    btnConvert.disabled = false;
+    btnConsolidate.disabled = false;
+    if (response.success) {
+      statusDiv.className = "mt-3 text-success fw-bold";
+      statusDiv.innerHTML = "✓ " + response.message;
+    } else {
+      statusDiv.className = "mt-3 text-danger fw-bold";
+      statusDiv.innerHTML = "❌ " + response.message;
     }
+  }, function(error) {
+    btnConvert.disabled = false;
+    btnConsolidate.disabled = false;
+    statusDiv.className = "mt-3 text-danger fw-bold";
+    statusDiv.innerHTML = "❌ 系統連線錯誤: " + error.message;
+  });
+}
 
-    /**
-     * 3. 收集異動並提交登記
-     */
-    function submitRegData() {
-      if (!globalStudentInfo || globalOriginalCourses.length === 0) return;
-
-      let addedCourses = [];
-      let removedCourses = [];
-      let currentTotalSelected = 0;
-
-      const checkboxes = document.querySelectorAll(".course-checkbox");
-      checkboxes.forEach(chk => {
-        const idx = parseInt(chk.getAttribute("data-index"), 10);
-        const course = globalOriginalCourses[idx];
-        const isOriginallyChecked = course.reg === "已登記";
-        const isCurrentlyChecked = chk.checked;
-
-        if (isCurrentlyChecked) {
-          currentTotalSelected++;
-        }
-
-        if (isCurrentlyChecked && !isOriginallyChecked) {
-          // 本次勾選加選
-          addedCourses.push(course);
-        } else if (!isCurrentlyChecked && isOriginallyChecked) {
-          // 本次取消退選
-          removedCourses.push(course);
-        }
-      });
-
-      // 防呆：完全沒任何變更
-      if (addedCourses.length === 0 && removedCourses.length === 0) {
-        alert("您目前的勾選狀態與原本相符，未偵測到任何異動，無須送出。");
-        return;
+// 處理「上傳檔案」按鈕點擊
+function handleUpload() {
+  const fileInput = document.getElementById("excelFileSelector");
+  const statusDiv = document.getElementById("statusMessage");
+  const btnUpload = document.getElementById("btnUpload");
+  
+  if (fileInput.files.length === 0) {
+    alert("請先選擇要上傳的 .xlsx 檔案！");
+    return;
+  }
+  
+  const file = fileInput.files[0];
+  btnUpload.disabled = true;
+  statusDiv.innerHTML = '<span class="spinner-border spinner-border-sm text-warning" role="status"></span> 正在上傳檔案至雲端資料夾，請稍候...';
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const base64Data = e.target.result;
+    
+    callBackendAPI({ 
+      action: "upload", 
+      base64Data: base64Data, 
+      fileName: file.name 
+    }, function(response) {
+      btnUpload.disabled = false;
+      fileInput.value = ""; 
+      if (response.success) {
+        statusDiv.className = "mt-3 text-success fw-bold";
+        statusDiv.innerHTML = "✓ " + response.message;
+        document.getElementById("uploadArea").style.display = "none"; 
+      } else {
+        statusDiv.className = "mt-3 text-danger fw-bold";
+        statusDiv.innerHTML = "❌ " + response.message;
       }
+    }, function(error) {
+      btnUpload.disabled = false;
+      statusDiv.className = "mt-3 text-danger fw-bold";
+      statusDiv.innerHTML = "❌ 上傳時發生連線錯誤: " + error.message;
+    });
+  };
+  reader.readAsDataURL(file);
+}
+</script>
 
-      // 確認提示
-      const confirmRun = confirm(`您目前選擇了 ${currentTotalSelected} 個科目。\n確認要提交本次的「加選/退選」異動嗎？`);
-      if (!confirmRun) return;
-
-      toggleLoading(true);
-
-      fetch(WEB_APP_URL, {
-        method: "POST",
-        body: JSON.stringify({
-          action: "submitRegistration",
-          studentInfo: globalStudentInfo,
-          addedCourses: addedCourses,
-          removedCourses: removedCourses
-        })
-      })
-      .then(response => response.json())
-      .then(res => {
-        toggleLoading(false);
-        if (res.success) {
-          alert("異動更新成功！申請結果已同步寄送至您的學校電子郵件信箱。");
-          
-          // 💡 核心變更：不需重新整理網頁，直接自動呼叫查詢，即時在頁面上重整顯示最新申請狀況！
-          fetchStudentData(); 
-        } else {
-          alert("更新失敗：" + res.msg + "\n請洽教務處實驗研究組（電子郵件：tcvschss@tcvs.ilc.edu.tw）。");
-        }
-      })
-      .catch(err => {
-        toggleLoading(false);
-        alert("提交時發生連線錯誤，請檢查網路，或洽實驗研究組（電子郵件：tcvschss@tcvs.ilc.edu.tw）。");
-        console.error(err);
-      });
-    }
-  </script>
 </body>
 </html>
