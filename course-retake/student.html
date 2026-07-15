@@ -81,21 +81,21 @@
     </form>
   </div>
 
-  <!-- 2. 學生基本資料區（驗證成功後展開） -->
+  <!-- 2. 學生基本資料區 -->
   <div id="student-info-block" class="work-zone d-none">
     <h5>👤 學生基本資料</h5>
     <div class="row g-3 text-dark mt-2 ps-1">
+      <div class="col-6 col-sm-3"><strong>學號：</strong><span id="info-id">-</span></div>
       <div class="col-6 col-sm-3"><strong>班級：</strong><span id="info-class">-</span></div>
       <div class="col-6 col-sm-3"><strong>座號：</strong><span id="info-seat">-</span></div>
       <div class="col-6 col-sm-3"><strong>姓名：</strong><span id="info-name">-</span></div>
-      <div class="col-6 col-sm-3"><strong>學號：</strong><span id="info-id">-</span></div>
     </div>
   </div>
 
-  <!-- 3. 可重補修科目表（驗證成功後展開） -->
+  <!-- 3. 可重補修科目表 -->
   <div id="course-table-block" class="work-zone d-none">
     <div class="d-flex justify-content-between align-items-center flex-wrap g-2">
-      <h5 class="m-0">📚 可重補修之科目清單</h5>
+      <h5 class="m-0">📚 可重補修科目清單</h5>
       <span class="badge bg-secondary p-2">提示：勾選即可加選，取消勾選即為退選</span>
     </div>
 
@@ -119,7 +119,7 @@
 
     <div class="d-flex justify-content-between align-items-center mt-4 border-top pt-3 flex-wrap g-2">
       <div class="text-secondary small fw-bold">
-        ※ 送出異動後，系統會自動同步至您班級的申請名冊中，並發送明細信至您的信箱。
+        ※ 送出異動後，系統會自動同步至申請名冊，並發送明細信至您的信箱。
       </div>
       <button type="button" id="btnSubmit" class="btn btn-success px-4 fw-bold shadow-sm" onclick="submitRegData()">
         💾 確認並送出異動登記
@@ -224,19 +224,16 @@
 
       const checkedAttr = isRegistered ? "checked" : "";
 
-      // 💡 科目狀態與取得學分的渲染邏輯
       let statusDisplayHtml = "";
       const checkGet = String(course.get).trim();
-      const mainStatus = String(course.status).trim(); // 原本的 "重修" 或 "補修"
+      const mainStatus = String(course.status).trim(); 
 
       if (checkGet === "是-Y") {
-        // 當取得學分為 "是-Y"，強制顯示「重修」配上紅色加粗的「已取得學分」
         statusDisplayHtml = `
           <span class="badge bg-secondary status-badge me-2">重修</span>
           <span class="text-danger fw-bold small">已取得學分</span>
         `;
       } else {
-        // 其他情況只顯示原來的狀態分類標籤
         statusDisplayHtml = `<span class="badge bg-secondary status-badge">${mainStatus}</span>`;
       }
 
@@ -302,7 +299,7 @@
     });
 
     if (addedCourses.length === 0 && removedCourses.length === 0) {
-      alert("您目前的勾選狀態與原登記名冊一致，未偵測到任何異動，無須提交。");
+      alert("您目前的勾選狀態，未有任何異動，無須提交。");
       return;
     }
 
@@ -333,7 +330,8 @@
       toggleLoading(false);
       btnSubmit.disabled = false;
       if (res.success) {
-        alert("異動更新成功！異動明細已同步發送至管理信箱。");
+        // 💡 調整提示：告知異動明細已發送至學生的學校信箱
+        alert("異動更新成功！異動明細已同步發送至您的學校信箱。");
         fetchStudentData(); 
       } else {
         alert("更新失敗：" + res.msg + "\n請洽教務處實驗研究組（電子郵件：tcvschss@tcvs.ilc.edu.tw）。");
