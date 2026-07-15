@@ -39,7 +39,7 @@
 
 <div class="container-fluid">
   <div class="header">
-    <h4>國立頭城高級家事商業職業學校<BR>115學年度第1學期<BR>重補修作業系統</h4>
+    <h4>國立頭城高級家事商業職業學校<BR>115學年度第1學期<BR>重補修管理系統</h4>
     <div style="text-align: right;">系統維護：教務處實驗研究組<BR>校內分機111或E-mail：tcvschss@tcvs.ilc.edu.tw</div>
   </div>
   
@@ -50,6 +50,10 @@
     </button>
     <button id="btnConsolidate" class="btn btn-success ms-2" onclick="handleConsolidate()">
       整合申請資料
+    </button>
+    <!-- 開課功能按鈕 -->
+    <button id="btnCourse" class="btn btn-info ms-2 text-white" onclick="handleCourseClick()">
+      開課
     </button>
     
     <div id="uploadArea" class="upload-box" style="display: none;">
@@ -63,20 +67,78 @@
 
     <div id="statusMessage" class="mt-3 text-muted" style="display:none;"></div>
   </div>
+
+  <!-- 左右對稱二分式工作區 -->
+  <div id="courseZone" class="work-zone" style="display: none;">
+    <div class="row">
+      
+      <!-- 👈 左半邊：開課統計與設定表 (含分發班次與總計列) -->
+      <div class="col-md-7 border-end">
+        <div class="d-flex justify-content-between align-items-center">
+          <h5 class="text-primary mb-0">開課統計與設定</h5>
+          <!-- 貼心小勾選 -->
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="chkShowClosed" onchange="renderCourseTable()">
+            <label class="form-check-label text-muted" style="font-size: 0.9rem;" for="chkShowClosed">顯示不開班科目</label>
+          </div>
+        </div>
+        
+        <div id="courseTableContainer" class="table-responsive mt-3">
+          <table class="table table-bordered table-striped align-middle">
+            <thead class="table-light text-center">
+              <tr>
+                <th style="width: 30%;">科目</th>
+                <th style="width: 15%;">申請人數</th>
+                <th style="width: 35%;">分發班次</th> 
+                <th style="width: 20%;">開班設定</th>
+              </tr>
+            </thead>
+            <tbody id="courseTableBody">
+              <!-- 由 JavaScript 動態填入 -->
+            </tbody>
+          </table>
+        </div>
+        <div class="text-end mt-3">
+          <button id="btnUpdateCourse" class="btn btn-primary" onclick="handleUpdateCourse()">
+            更新
+          </button>
+        </div>
+      </div>
+      
+      <!-- 👉 右半邊：上課班次統計表 -->
+      <div class="col-md-5">
+        <h5 class="text-success mb-3">上課班次人數統計</h5>
+        <div id="sessionTableContainer" class="table-responsive">
+          <table class="table table-bordered table-striped align-middle">
+            <thead class="table-light text-center">
+              <tr>
+                <th style="width: 60%;">上課班次</th> 
+                <th style="width: 40%;">人數</th>
+              </tr>
+            </thead>
+            <tbody id="sessionTableBody">
+              <!-- 由 JavaScript 動態填入 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+    </div>
+  </div>
 </div>
 
 <script>
-// 🌟 重要設定：請在此處替換為你「部署 Web 應用程式」後產生的網址
-const GAS_WEB_APP_URL = "https://script.google.com/a/macros/tcvs.ilc.edu.tw/s/AKfycbzKUkKyGcfSKyJyAQhh8dGUx9005y4OZ4lV8SUxw2nGUQvaL9jT2RDdOIXMYY3RprlG/exec";
+// 🌟 重要設定：指向後端部署完成的 API 網址
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzKUkKyGcfSKyJyAQhh8dGUx9005y4OZ4lV8SUxw2nGUQvaL9jT2RDdOIXMYY3RprlG/exec";
+
+// 快取全域資料
+let globalCourseData = [];
+let globalSessionData = [];
 
 function initSystem() {
   console.log("GitHub 獨立前端初始化完成");
 }
 
-/**
- * 核心通訊網路：利用瀏覽器標準 fetch API 將指令拋送給 GAS 後端
- * 註：Content-Type 採用 text/plain 可以完美繞過跨網域 (CORS) 複雜預檢，提升連線穩定度
- */
 function callBackendAPI(payload, successCallback, failureCallback) {
   fetch(GAS_WEB_APP_URL, {
     method: "POST",
@@ -97,11 +159,13 @@ function callBackendAPI(payload, successCallback, failureCallback) {
 function handleConvert() {
   const btnConvert = document.getElementById("btnConvert");
   const btnConsolidate = document.getElementById("btnConsolidate");
+  const btnCourse = document.getElementById("btnCourse");
   const statusDiv = document.getElementById("statusMessage");
   const uploadArea = document.getElementById("uploadArea");
   
   btnConvert.disabled = true;
   btnConsolidate.disabled = true;
+  btnCourse.disabled = true;
   uploadArea.style.display = "none"; 
   statusDiv.style.display = "block";
   statusDiv.className = "mt-3 text-muted";
@@ -110,6 +174,7 @@ function handleConvert() {
   callBackendAPI({ action: "convert" }, function(response) {
     btnConvert.disabled = false;
     btnConsolidate.disabled = false;
+    btnCourse.disabled = false;
     if (response.success) {
       statusDiv.className = "mt-3 text-success fw-bold";
       statusDiv.innerHTML = "✓ " + response.message;
@@ -121,6 +186,7 @@ function handleConvert() {
   }, function(error) {
     btnConvert.disabled = false;
     btnConsolidate.disabled = false;
+    btnCourse.disabled = false;
     statusDiv.className = "mt-3 text-danger fw-bold";
     statusDiv.innerHTML = "❌ 系統連線錯誤: " + error.message;
   });
@@ -130,11 +196,13 @@ function handleConvert() {
 function handleConsolidate() {
   const btnConvert = document.getElementById("btnConvert");
   const btnConsolidate = document.getElementById("btnConsolidate");
+  const btnCourse = document.getElementById("btnCourse");
   const statusDiv = document.getElementById("statusMessage");
   const uploadArea = document.getElementById("uploadArea");
   
   btnConvert.disabled = true;
   btnConsolidate.disabled = true;
+  btnCourse.disabled = true;
   uploadArea.style.display = "none";
   statusDiv.style.display = "block";
   statusDiv.className = "mt-3 text-muted";
@@ -143,6 +211,7 @@ function handleConsolidate() {
   callBackendAPI({ action: "consolidate" }, function(response) {
     btnConvert.disabled = false;
     btnConsolidate.disabled = false;
+    btnCourse.disabled = false;
     if (response.success) {
       statusDiv.className = "mt-3 text-success fw-bold";
       statusDiv.innerHTML = "✓ " + response.message;
@@ -153,6 +222,7 @@ function handleConsolidate() {
   }, function(error) {
     btnConvert.disabled = false;
     btnConsolidate.disabled = false;
+    btnCourse.disabled = false;
     statusDiv.className = "mt-3 text-danger fw-bold";
     statusDiv.innerHTML = "❌ 系統連線錯誤: " + error.message;
   });
@@ -199,6 +269,267 @@ function handleUpload() {
     });
   };
   reader.readAsDataURL(file);
+}
+
+// 處理「開課」按鈕點擊
+function handleCourseClick() {
+  const btnConvert = document.getElementById("btnConvert");
+  const btnConsolidate = document.getElementById("btnConsolidate");
+  const btnCourse = document.getElementById("btnCourse");
+  const statusDiv = document.getElementById("statusMessage");
+  const courseZone = document.getElementById("courseZone");
+  
+  btnConvert.disabled = true;
+  btnConsolidate.disabled = true;
+  btnCourse.disabled = true;
+  statusDiv.style.display = "block";
+  statusDiv.className = "mt-3 text-muted";
+  statusDiv.innerHTML = '<span class="spinner-border spinner-border-sm text-info" role="status"></span> 正在讀取與計算最新數據，請稍候...';
+
+  callBackendAPI({ action: "getCourseStats" }, function(response) {
+    btnConvert.disabled = false;
+    btnConsolidate.disabled = false;
+    btnCourse.disabled = false;
+    
+    if (response.success) {
+      statusDiv.style.display = "none"; 
+      courseZone.style.display = "block"; 
+      
+      globalCourseData = response.data || [];
+      globalSessionData = response.sessionData || [];
+      
+      renderCourseTable();
+      renderSessionTable();
+    } else {
+      statusDiv.className = "mt-3 text-danger fw-bold";
+      statusDiv.innerHTML = "❌ " + response.message;
+    }
+  }, function(error) {
+    btnConvert.disabled = false;
+    btnConsolidate.disabled = false;
+    btnCourse.disabled = false;
+    statusDiv.className = "mt-3 text-danger fw-bold";
+    statusDiv.innerHTML = "❌ 系統連線錯誤: " + error.message;
+  });
+}
+
+// 🌟 左半部：渲染「開課統計與設定表」並計算加總 🌟
+function renderCourseTable() {
+  const tbody = document.getElementById("courseTableBody");
+  tbody.innerHTML = "";
+  
+  const showClosed = document.getElementById("chkShowClosed").checked;
+  
+  // 核心過濾：若未勾選顯示，則將已關閉科目過濾掉
+  const filteredData = globalCourseData.filter(item => {
+    if (showClosed) return true;
+    return !item.isClosed;
+  });
+  
+  if (filteredData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">目前無符合條件之科目。</td></tr>';
+    return;
+  }
+  
+  // 用於統計總人數
+  let sumApplicants = 0;
+  let sumAssigned = 0;
+  
+  filteredData.forEach((item, index) => {
+    const tr = document.createElement("tr");
+    
+    // 1. 科目
+    const tdSubject = document.createElement("td");
+    tdSubject.textContent = item.subject;
+    tdSubject.className = "fw-bold ps-3";
+    tr.appendChild(tdSubject);
+    
+    // 2. 申請人數
+    const tdTotal = document.createElement("td");
+    tdTotal.textContent = item.total + " 人";
+    tdTotal.className = "text-center";
+    tr.appendChild(tdTotal);
+    
+    // 累加「申請人數」 (僅限畫面上呈現的科目)
+    sumApplicants += item.total;
+    
+    // 3. 分發班次與人數計算
+    const tdSessions = document.createElement("td");
+    let subjectAssignedCount = 0;
+    
+    if (item.sessions && item.sessions.length > 0) {
+      const sessionTexts = item.sessions.map(s => {
+        subjectAssignedCount += s.count; // 累加此科目被分發的總人數
+        return `${s.name}：分發（${s.count}）人`;
+      });
+      tdSessions.innerHTML = sessionTexts.join("<br>");
+    } else {
+      tdSessions.innerHTML = '<span class="text-muted">（尚未分班）</span>';
+    }
+    tr.appendChild(tdSessions);
+    
+    // 累加「分發人數」
+    sumAssigned += subjectAssignedCount;
+    
+    // 4. 開班設定 (Toggle 切換)
+    const tdToggle = document.createElement("td");
+    tdToggle.className = "text-center";
+    
+    const isClosed = item.isClosed; 
+    const checkedAttr = isClosed ? "" : "checked"; 
+    const labelText = isClosed ? "不開班" : "開班";
+    const labelClass = isClosed ? "text-danger fw-bold" : "text-success fw-bold";
+    
+    const toggleId = `toggle_${index}`;
+    const labelId = `label_${index}`;
+    
+    tdToggle.innerHTML = `
+      <div class="form-check form-switch d-inline-block">
+        <input class="form-check-input course-toggle-input" type="checkbox" id="${toggleId}" data-subject="${item.subject}" ${checkedAttr} onchange="toggleLabelChange(this, '${labelId}')">
+        <label class="form-check-label ${labelClass}" for="${toggleId}" id="${labelId}">${labelText}</label>
+      </div>
+    `;
+    tr.appendChild(tdToggle);
+    
+    tbody.appendChild(tr);
+  });
+  
+  // 🌟 左半部最下方：新增「人數總計」列 🌟
+  const trSum = document.createElement("tr");
+  trSum.className = "table-info fw-bold text-dark"; // 使用淡藍色醒目提示
+  
+  // 第 1 欄：標題
+  const tdSumLabel = document.createElement("td");
+  tdSumLabel.textContent = "人數總計";
+  tdSumLabel.className = "ps-3 text-primary";
+  trSum.appendChild(tdSumLabel);
+  
+  // 第 2 欄：申請人數加總
+  const tdSumApplicants = document.createElement("td");
+  tdSumApplicants.textContent = sumApplicants + " 人";
+  tdSumApplicants.className = "text-center text-primary";
+  trSum.appendChild(tdSumApplicants);
+  
+  // 第 3 欄：分發人數加總
+  const tdSumAssigned = document.createElement("td");
+  tdSumAssigned.textContent = sumAssigned + " 人";
+  tdSumAssigned.className = "text-center text-primary";
+  trSum.appendChild(tdSumAssigned);
+  
+  // 第 4 欄：開班設定（空白不顯示）
+  const tdSumBlank = document.createElement("td");
+  trSum.appendChild(tdSumBlank);
+  
+  tbody.appendChild(trSum);
+}
+
+// 🌟 右半部：渲染「上課班次人數統計表」並計算加總 🌟
+function renderSessionTable() {
+  const tbody = document.getElementById("sessionTableBody");
+  tbody.innerHTML = "";
+  
+  if (globalSessionData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-3">「配課」工作表中尚無上課班次。</td></tr>';
+    return;
+  }
+  
+  let sumSessions = 0;
+  
+  globalSessionData.forEach(item => {
+    const tr = document.createElement("tr");
+    
+    // 1. 上課班次
+    const tdSession = document.createElement("td");
+    tdSession.textContent = item.session;
+    tdSession.className = "ps-3 fw-bold";
+    tr.appendChild(tdSession);
+    
+    // 2. 人數
+    const tdCount = document.createElement("td");
+    tdCount.textContent = item.count + " 人";
+    tdCount.className = "text-center";
+    tr.appendChild(tdCount);
+    
+    sumSessions += item.count; // 累加總分發人數
+    
+    tbody.appendChild(tr);
+  });
+  
+  // 🌟 右半部最下方：新增「人數總計」列 🌟
+  const trSum = document.createElement("tr");
+  trSum.className = "table-success fw-bold text-dark"; // 使用淡綠色醒目提示
+  
+  // 第 1 欄：標題
+  const tdSumLabel = document.createElement("td");
+  tdSumLabel.textContent = "人數總計";
+  tdSumLabel.className = "ps-3 text-success";
+  trSum.appendChild(tdSumLabel);
+  
+  // 第 2 欄：分發人數加總
+  const tdSumSessions = document.createElement("td");
+  tdSumSessions.textContent = sumSessions + " 人";
+  tdSumSessions.className = "text-center text-success";
+  trSum.appendChild(tdSumSessions);
+  
+  tbody.appendChild(trSum);
+}
+
+function toggleLabelChange(checkbox, labelId) {
+  const label = document.getElementById(labelId);
+  if (checkbox.checked) {
+    label.textContent = "開班";
+    label.className = "form-check-label text-success fw-bold";
+  } else {
+    label.textContent = "不開班";
+    label.className = "form-check-label text-danger fw-bold";
+  }
+}
+
+// 處理「更新」
+function handleUpdateCourse() {
+  const btnUpdate = document.getElementById("btnUpdateCourse");
+  const toggles = document.querySelectorAll(".course-toggle-input");
+  const payload = [];
+  
+  toggles.forEach(toggle => {
+    const subject = toggle.getAttribute("data-subject");
+    const status = toggle.checked ? "開班" : "不開班";
+    payload.push({ subject: subject, status: status });
+  });
+  
+  globalCourseData.forEach(item => {
+    const alreadyInPayload = payload.some(p => p.subject === item.subject);
+    if (!alreadyInPayload) {
+      payload.push({
+        subject: item.subject,
+        status: item.isClosed ? "不開班" : "開班"
+      });
+    }
+  });
+  
+  btnUpdate.disabled = true;
+  btnUpdate.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> 正在同步至雲端...';
+  
+  callBackendAPI({ action: "updateCourseStatus", payload: payload }, function(response) {
+    btnUpdate.disabled = false;
+    btnUpdate.textContent = "更新";
+    
+    if (response.success) {
+      alert("開班與人數統計設定已成功同步！");
+      
+      globalCourseData = response.data || [];
+      globalSessionData = response.sessionData || [];
+      
+      renderCourseTable();
+      renderSessionTable(); 
+    } else {
+      alert("更新失敗: " + response.message);
+    }
+  }, function(error) {
+    btnUpdate.disabled = false;
+    btnUpdate.textContent = "更新";
+    alert("連線中斷，無法完成更新: " + error.message);
+  });
 }
 </script>
 
