@@ -1,18 +1,12 @@
 /**
- * 🌟 重補修管理系統 — 開課模組邏輯 (js/course.js)
+ * 🌟 開課模組商務邏輯 (js/course.js)
  */
 
-// ==========================================
-// 1. 全域變數 (專屬於開課模組)
-// ==========================================
 let globalStudentData = []; 
 let globalSessionData = [];
 let selectedSessionIndex = -1;
 let deletedSessionsQueue = [];
 
-// ==========================================
-// 2. 點擊頂部「開課」按鈕觸發
-// ==========================================
 function handleCourseClick() {
   hideAllWorkZones();
   toggleActionButtons(true, 'info', '正在讀取學生申請明細與最新數據，請稍候...');
@@ -57,11 +51,6 @@ function handleCourseClick() {
   });
 }
 
-// ==========================================
-// 3. 畫面渲染函式群
-// ==========================================
-
-// 渲染「申請一覽表」
 function renderStudentTable() {
   const thead = document.getElementById("courseTableHead");
   const tbody = document.getElementById("courseTableBody");
@@ -119,7 +108,6 @@ function renderStudentTable() {
   tbody.innerHTML = bodyHtml;
 }
 
-// 渲染「上課班次人數統計表」
 function renderSessionTable() {
   const tbody = document.getElementById("sessionTableBody");
   if (globalSessionData.length === 0) {
@@ -173,10 +161,6 @@ function renderSessionTable() {
     
   tbody.innerHTML = bodyHtml;
 }
-
-// ==========================================
-// 4. 互動邏輯函式群
-// ==========================================
 
 function handleRadioChange(selectedIndex) {
   selectedSessionIndex = selectedIndex;
