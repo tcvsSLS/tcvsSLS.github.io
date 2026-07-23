@@ -1,0 +1,22 @@
+<!-- 🌟 排課工作區組件 (components/schedule_zone.html) -->
+<div id="scheduleZone" class="work-zone" style="display: none;">
+  <div class="row">
+    <!-- 👈 左半邊：資料顯示區 (重要日期表格等) -->
+    <div class="col-md-7 border-end">
+      <h5 class="text-primary mb-3" id="scheduleLeftTitle">排課工作區</h5>
+      <div id="scheduleLeftContent">
+        <div class="text-muted text-center py-5">請點選右側功能按鈕開始操作。</div>
+      </div>
+    </div>
+    
+    <!-- 👉 右半邊：功能按鈕群組 -->
+    <div class="col-md-5">
+      <h5 class="text-success mb-3">排課功能清單</h5>
+      <div class="d-grid gap-2">
+        <button id="btnImportantDates" class="btn btn-outline-primary fw-bold text-start py-2" onclick="handleImportantDatesClick()">
+          📅 填寫重要日期
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
