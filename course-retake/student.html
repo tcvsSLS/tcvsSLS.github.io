@@ -130,7 +130,6 @@
 </div>
 
 <script>
-  // 🌟 固定您的 Web 應用程式網址，採用 text/plain 繞過 CORS 機制，穩定度最高
   const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz1viSsMr-yLhx146zzonHCKl4Qdp-YD6c98GcZpTqgh_6zpSixejNuQHnZMfmMq6R0Sw/exec";
 
   let globalStudentInfo = null;
@@ -211,11 +210,20 @@
     });
   }
 
+  // 💡 主要修改此區塊：渲染清單時進行篩選過濾
   function renderCourseTable(courses) {
     const tbody = document.getElementById("course-tbody");
     tbody.innerHTML = "";
 
     courses.forEach((course, index) => {
+      const mainStatus = String(course.status).trim(); 
+      const subjectName = String(course.subject).trim();
+
+      // ⭐ 核心條件：如果狀態是「補修」，且名稱包含「原住民族語文」或「客語文」，則不渲染該列資料
+      if (mainStatus === "補修" && (subjectName.includes("原住民族語文") || subjectName.includes("客語文"))) {
+        return; // 跳過此筆資料，直接進入下一輪迴圈
+      }
+
       const tr = document.createElement("tr");
       const isRegistered = course.reg === "已登記";
       if (isRegistered) {
@@ -223,10 +231,8 @@
       }
 
       const checkedAttr = isRegistered ? "checked" : "";
-
       let statusDisplayHtml = "";
       const checkGet = String(course.get).trim();
-      const mainStatus = String(course.status).trim(); 
 
       if (checkGet === "是-Y") {
         statusDisplayHtml = `
@@ -330,7 +336,6 @@
       toggleLoading(false);
       btnSubmit.disabled = false;
       if (res.success) {
-        // 💡 調整提示：告知異動明細已發送至學生的學校信箱
         alert("異動更新成功！異動明細已同步發送至您的學校信箱。");
         fetchStudentData(); 
       } else {
