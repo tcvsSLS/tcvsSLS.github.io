@@ -1,2 +1,2 @@
-// 集中管理 API 網址，未來更換 Deployment 不需要到處修改
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/YOUR_GAS_DEPLOYMENT_ID/exec";
+// 全域設定檔
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzKUkKyGcfSKyJyAQhh8dGUx9005y4OZ4lV8SUxw2nGUQvaL9jT2RDdOIXMYY3RprlG/exec";
