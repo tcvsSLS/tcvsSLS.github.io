@@ -701,22 +701,49 @@ function renderImportantDatesTable() {
       <table class="table table-bordered table-hover align-middle bg-white">
         <thead class="table-light text-center sticky-top">
           <tr>
-            <th style="width: 12%;">選擇</th>
-            <th style="width: 38%;">日期</th>
-            <th style="width: 50%;">說明</th>
+            <th style="width: 10%;">選擇</th>
+            <th style="width: 25%;">日期</th>
+            <th style="width: 33%;">說明</th>
+            <th style="width: 32%;">備註</th>
           </tr>
         </thead>
         <tbody id="importantDatesTableBody">`;
         
   if (globalImportantDates.length === 0) {
-    tableHtml += '<tr><td colspan="3" class="text-center text-muted py-3">尚無重要日期，請點擊下方「新增」按鈕建立。</td></tr>';
+    tableHtml += '<tr><td colspan="4" class="text-center text-muted py-3">尚無重要日期，請點擊下方「新增」按鈕建立。</td></tr>';
   } else {
     globalImportantDates.forEach((item, index) => {
       const isSelected = (index === selectedDateIndex);
-      const isFixedRow = (index < 8); 
+      const isFixedRow = (index < 8); // 前 8 列為系統固定預設項目
       
       const dateDisabledStr = isSelected ? "" : "disabled";
       const descDisabledStr = (isSelected && !isFixedRow) ? "" : "disabled";
+      const remarkDisabledStr = isSelected ? "" : "disabled";
+      
+      let remarkTdContent = '';
+      
+      if (isFixedRow) {
+        // 第 1 至 8 列備註保持空白
+        remarkTdContent = '<td class="text-center text-muted"></td>';
+      } else {
+        // 第 9 列起顯示 radio 群組（全日可排課 / 不宜排課）
+        const remarkVal = item.remark || "全日可排課";
+        remarkTdContent = `
+          <td class="p-2 text-start">
+            <div class="form-check form-check-inline me-2">
+              <input class="form-check-input remark-radio" type="radio" name="dateRemark_${index}" id="remark1_${index}" 
+                     value="全日可排課" ${remarkVal === "全日可排課" ? "checked" : ""} ${remarkDisabledStr} 
+                     onchange="globalImportantDates[${index}].remark='全日可排課'">
+              <label class="form-check-label small" for="remark1_${index}">全日可排課</label>
+            </div>
+            <div class="form-check form-check-inline me-0">
+              <input class="form-check-input remark-radio" type="radio" name="dateRemark_${index}" id="remark2_${index}" 
+                     value="不宜排課" ${remarkVal === "不宜排課" ? "checked" : ""} ${remarkDisabledStr} 
+                     onchange="globalImportantDates[${index}].remark='不宜排課'">
+              <label class="form-check-label small text-danger fw-bold" for="remark2_${index}">不宜排課</label>
+            </div>
+          </td>`;
+      }
       
       tableHtml += `
         <tr>
@@ -729,6 +756,7 @@ function renderImportantDatesTable() {
           <td>
             <input type="text" class="form-control form-control-sm desc-input" value="${item.description || ''}" ${descDisabledStr} ${isFixedRow ? 'placeholder="系統預設固定欄位"' : 'placeholder="請輸入說明..."'}>
           </td>
+          ${remarkTdContent}
         </tr>`;
     });
   }
@@ -757,6 +785,7 @@ function handleDateRadioChange(selectedIndex) {
     
     const dateInput = tr.querySelector(".date-input");
     const descInput = tr.querySelector(".desc-input");
+    const remarkRadios = tr.querySelectorAll(".remark-radio");
     
     if (dateInput) {
       if (isSelected) dateInput.removeAttribute("disabled");
@@ -767,6 +796,11 @@ function handleDateRadioChange(selectedIndex) {
       if (isSelected && !isFixedRow) descInput.removeAttribute("disabled");
       else descInput.setAttribute("disabled", "true");
     }
+
+    remarkRadios.forEach(r => {
+      if (isSelected) r.removeAttribute("disabled");
+      else r.setAttribute("disabled", "true");
+    });
   });
 }
 
@@ -782,6 +816,17 @@ function saveDateInputsToCache() {
       if (descInput && idx >= 8) {
         globalImportantDates[idx].description = descInput.value.trim();
       }
+
+      if (idx >= 8) {
+        const checkedRadio = tr.querySelector(`input[name="dateRemark_${idx}"]:checked`);
+        if (checkedRadio) {
+          globalImportantDates[idx].remark = checkedRadio.value;
+        } else if (!globalImportantDates[idx].remark) {
+          globalImportantDates[idx].remark = "全日可排課";
+        }
+      } else {
+        globalImportantDates[idx].remark = "";
+      }
     }
   });
 }
@@ -791,7 +836,8 @@ function addImportantDateRow() {
   
   const today = new Date().toISOString().split('T')[0];
   
-  globalImportantDates.push({ date: today, description: "" });
+  // 第 9 列起新增時預設備註為「全日可排課」
+  globalImportantDates.push({ date: today, description: "", remark: "全日可排課" });
   selectedDateIndex = globalImportantDates.length - 1;
   
   renderImportantDatesTable();
