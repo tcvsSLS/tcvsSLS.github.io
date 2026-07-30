@@ -1,43 +1,57 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>國立頭城家商 — 重補修管理系統</title>
-  
-  <!-- CDN 資源 -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/js/bootstrap.bundle.min.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght=500&display=swap" rel="stylesheet">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>國立頭城家商 — 重補修網路管理系統</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/js/bootstrap.bundle.min.js"></script>
 
-  <!-- 獨立 CSS -->
-  <link rel="stylesheet" href="css/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght=500;700&display=swap" rel="stylesheet">
+
+<style>
+  * { font-family: 'Noto Sans TC', sans-serif; }
+  .header { color: AntiqueWhite; background-color: LightSeaGreen; padding: 10px; }
+  .work-zone { margin-top: 20px; padding: 15px; border: 1px dashed #ccc; background-color: #f9f9f9; border-radius: 5px; }
+  .upload-box { margin-top: 15px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 5px; }
+  
+  /* 深綠字（延修生）與一致淡綠底（補修科目） */
+  .text-deep-green { color: #0f5132 !important; font-weight: bold !important; }
+  .bg-light-green { background-color: #d1e7dd !important; }
+
+  /* 按鈕基礎字體與圓角設定 */
+  .btn {
+    font-weight: 700 !important;
+    border-radius: 6px !important;
+    padding: 0.375rem 0.85rem;
+  }
+</style>
 </head>
 
-<body>
+<body onload="initSystem()">
 
 <div class="container-fluid">
   <!-- 頁首資訊 -->
   <div class="header">
     <h4>國立頭城高級家事商業職業學校<br>115學年度第1學期<br>重補修管理系統</h4>
-    <div style="text-align: right;">系統維護：只能自己來了</div>
+    <div style="text-align: right;">系統維護：教務處實驗研究組<br>校內分機111或E-mail：tcvschss@tcvs.ilc.edu.tw</div>
   </div>
   
   <!-- 頂部功能按鈕區 -->
   <div name="workarea" class="work-zone">
     <button id="btnConvert" class="btn btn-primary" onclick="handleConvert()">建立可選修資料表</button>
-    <button id="btnConsolidate" class="btn btn-primary" onclick="handleConsolidate()">整合申請資料</button>
-    <button id="btnCourse" class="btn btn-primary" onclick="handleCourseClick()">開課</button>
-    <button id="btnSchedule" class="btn btn-primary" onclick="handleScheduleClick()">排課</button>
+    <button id="btnConsolidate" class="btn btn-primary ms-2" onclick="handleConsolidate()">整合申請資料</button>
+    <button id="btnCourse" class="btn btn-primary ms-2" onclick="handleCourseClick()">開課</button>
+    <button id="btnSchedule" class="btn btn-primary ms-2" onclick="handleScheduleClick()">排課</button>
     
     <!-- 檔案上傳區塊 -->
     <div id="uploadArea" class="upload-box" style="display: none;">
       <h6 class="text-warning-emphasis fw-bold">請先上傳原始檔案：</h6>
       <div class="input-group my-2">
         <input type="file" class="form-control" id="excelFileSelector" accept=".xlsx">
-        <button class="btn btn-warning" type="button" id="btnUpload" onclick="handleUpload()">上傳檔案</button>
+        <button class="btn btn-primary" type="button" id="btnUpload" onclick="handleUpload()">上傳檔案</button>
       </div>
       <small class="text-muted">※ 註：無論您選擇的檔名為何，系統皆會自動將其存為「班級明細表.xlsx」。</small>
     </div>
@@ -45,17 +59,824 @@
     <div id="statusMessage" class="mt-3 text-muted" style="display:none;"></div>
   </div>
 
-  <!-- 🌟 動態組件掛載點 (Component Mount Points) -->
-  <div id="courseZoneContainer"></div>
-  <div id="scheduleZoneContainer"></div>
+  <!-- 左右對稱二分式開課工作區 -->
+  <div id="courseZone" class="work-zone" style="display: none;">
+    <div class="row">
+      <!-- 👈 左半邊：申請一覽表 -->
+      <div class="col-md-7 border-end">
+        <h5 class="text-primary mb-0">申請一覽表</h5>
+        <div id="courseTableContainer" class="table-responsive mt-3" style="max-height: 550px; overflow-y: auto;">
+          <table class="table table-bordered align-middle bg-white">
+            <thead id="courseTableHead" class="table-light text-center sticky-top"></thead>
+            <tbody id="courseTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- 👉 右半邊：上課班次人數統計表 -->
+      <div class="col-md-5">
+        <h5 class="text-success mb-3">上課班次人數統計</h5>
+        <div id="sessionTableContainer" class="table-responsive">
+          <table class="table table-bordered table-striped align-middle bg-white">
+            <thead class="table-light text-center">
+              <tr>
+                <th style="width: 10%;">選取</th>
+                <th style="width: 35%;">班次 (選取才能編輯)</th> 
+                <th style="width: 18%;">上課節數</th>
+                <th style="width: 15%;">人數</th>
+                <th style="width: 22%;">開課類型</th>
+              </tr>
+            </thead>
+            <tbody id="sessionTableBody"></tbody>
+          </table>
+        </div>
+        
+        <!-- 管理按鈕群組 -->
+        <div class="mt-4">
+          <div class="d-flex gap-2 mb-2">
+            <button id="btnAddSession" class="btn btn-outline-primary flex-fill" onclick="addNewSessionRow()">新增班次</button>
+            <button id="btnDeleteSession" class="btn btn-outline-danger flex-fill" onclick="deleteSessionRow()">刪除班次</button>
+          </div>
+          <div class="d-flex gap-2 mb-2">
+            <button id="btnAssign" class="btn btn-primary flex-fill" onclick="handleDistribution()">分發學生</button>
+            <button id="btnUpdateCourse" class="btn btn-primary flex-fill" onclick="handleUpdateCourse()">更新班次</button>
+          </div>
+        </div>
+        <small class="text-muted d-block mt-2 text-center">※ 提示：請先在表格中點選單選按鈕，再點擊欄位修改，或直接進行刪除（名字留白亦等同刪除）。</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- 左右對稱二分式排課工作區 -->
+  <div id="scheduleZone" class="work-zone" style="display: none;">
+    <div class="row">
+      <!-- 👈 左半邊：資料顯示區 -->
+      <div class="col-md-7 border-end">
+        <h5 class="text-primary mb-3" id="scheduleLeftTitle">排課工作區</h5>
+        <div id="scheduleLeftContent">
+          <div class="text-muted text-center py-5">請點選右側功能按鈕開始操作。</div>
+        </div>
+      </div>
+      
+      <!-- 👉 右半邊：排課功能清單 -->
+      <div class="col-md-5">
+        <h5 class="text-success mb-3">排課功能清單</h5>
+        <div class="d-grid gap-2">
+          <button id="btnImportantDates" class="btn btn-primary w-100" onclick="handleImportantDatesClick()">
+            填寫重要日期
+          </button>
+          <button id="btnClassTimes" class="btn btn-primary w-100" onclick="handleClassTimesClick()">
+            填寫上課時間
+          </button>
+          <button id="btnConflictCheck" class="btn btn-primary w-100" onclick="handleConflictCheckClick()">
+            衝堂檢查
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
 </div>
 
-<!-- 腳本引入（必須注意引入順序） -->
-<script src="js/config.js"></script>
-<script src="js/api.js"></script>
-<script src="js/course.js"></script>
-<script src="js/schedule.js"></script>
+<script>
+// ==========================================
+// 1. 全域變數與系統設定
+// ==========================================
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzKUkKyGcfSKyJyAQhh8dGUx9005y4OZ4lV8SUxw2nGUQvaL9jT2RDdOIXMYY3RprlG/exec";
 
+let globalStudentData = []; 
+let globalSessionData = [];
+let selectedSessionIndex = -1;
+let deletedSessionsQueue = [];
+
+// 排課模組全域變數
+let globalImportantDates = [];
+let selectedDateIndex = -1;
+
+function initSystem() {
+  console.log("重補修系統初始化完成");
+}
+
+function callBackendAPI(payload, successCallback, failureCallback) {
+  fetch(GAS_WEB_APP_URL, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers: { "Content-Type": "text/plain;charset=utf-8" }
+  })
+  .then(res => {
+    if (!res.ok) throw new Error("網路回應不正常");
+    return res.json();
+  })
+  .then(data => successCallback(data))
+  .catch(err => failureCallback(err));
+}
+
+// ==========================================
+// 2. 資料準備功能區 (建立、整合、上傳)
+// ==========================================
+function handleConvert() {
+  hideAllWorkZones();
+  toggleActionButtons(true, 'primary', '正在檢查並轉換檔案，請稍候...');
+  callBackendAPI({ action: "convert" }, function(response) {
+    toggleActionButtons(false);
+    showStatusMessage(response.success, response.message);
+    if (!response.success && response.fileNotFound) {
+      document.getElementById("uploadArea").style.display = "block";
+    }
+  }, function(error) {
+    toggleActionButtons(false);
+    showStatusMessage(false, "系統連線錯誤: " + error.message);
+  });
+}
+
+function handleConsolidate() {
+  hideAllWorkZones();
+  toggleActionButtons(true, 'primary', '正在掃描各班級資料表並整合申請資料，請稍候...');
+  callBackendAPI({ action: "consolidate" }, function(response) {
+    toggleActionButtons(false);
+    showStatusMessage(response.success, response.message);
+  }, function(error) {
+    toggleActionButtons(false);
+    showStatusMessage(false, "系統連線錯誤: " + error.message);
+  });
+}
+
+function handleUpload() {
+  const fileInput = document.getElementById("excelFileSelector");
+  const btnUpload = document.getElementById("btnUpload");
+  
+  if (fileInput.files.length === 0) {
+    alert("請先選擇要上傳的 .xlsx 檔案！");
+    return;
+  }
+  
+  btnUpload.disabled = true;
+  showStatusMessage(true, '正在上傳檔案至雲端資料夾，請稍候...', 'warning');
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    callBackendAPI({ 
+      action: "upload", 
+      base64Data: e.target.result, 
+      fileName: fileInput.files[0].name 
+    }, function(response) {
+      btnUpload.disabled = false;
+      fileInput.value = ""; 
+      showStatusMessage(response.success, response.message);
+      if (response.success) document.getElementById("uploadArea").style.display = "none";
+    }, function(error) {
+      btnUpload.disabled = false;
+      showStatusMessage(false, "上傳時發生連線錯誤: " + error.message);
+    });
+  };
+  reader.readAsDataURL(fileInput.files[0]);
+}
+
+// ==========================================
+// 3. 開課資料載入與畫面渲染層
+// ==========================================
+function handleCourseClick() {
+  hideAllWorkZones();
+  toggleActionButtons(true, 'primary', '正在讀取學生申請明細與最新數據，請稍候...');
+  
+  callBackendAPI({ action: "getCourseStats" }, function(response) {
+    toggleActionButtons(false);
+    if (!response.success) {
+      showStatusMessage(false, response.message);
+      return;
+    }
+    
+    document.getElementById("statusMessage").style.display = "none";
+    const rawData = response.studentData || response.data || [];
+    
+    if (rawData.length > 0 && !Array.isArray(rawData[0])) {
+      alert("⚠️ 格式錯誤提示：後端回傳格式不符，請同步更新後端 GAS 程式碼！");
+      globalStudentData = [];
+    } else {
+      globalStudentData = rawData;
+    }
+    
+    globalSessionData = (response.sessionData || []).map(s => ({
+      session: s.session,
+      count: s.count,
+      maxHours: s.maxHours || s.maxCredit || 0,
+      originalSession: s.session,
+      isNew: false,
+      courseType: s.courseType || "專班",
+      extendedStatus: s.extendedStatus || ""
+    }));
+    
+    selectedSessionIndex = -1;
+    deletedSessionsQueue = [];
+    
+    document.getElementById("courseZone").style.display = "block";
+    renderStudentTable();
+    recalculateSessionCounts();
+    syncStudentCheckboxesWithSelectedSession();
+  }, function(error) {
+    toggleActionButtons(false);
+    showStatusMessage(false, "系統連線錯誤: " + error.message);
+  });
+}
+
+function renderStudentTable() {
+  const thead = document.getElementById("courseTableHead");
+  const tbody = document.getElementById("courseTableBody");
+  
+  if (!globalStudentData || globalStudentData.length <= 1) {
+    thead.innerHTML = "";
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">（目前無符合格式之學生申請資料）</td></tr>';
+    return;
+  }
+  
+  const headerRow = globalStudentData[0];
+  
+  let headHtml = `<tr>
+    <th style="width: 75px;" class="text-center">
+      <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 13px;" onclick="clearAllStudentCheckboxes()">清空</button>
+    </th>`;
+  for (let i = 1; i <= 8; i++) {
+    const colName = headerRow[i] || "";
+    const styleAttr = colName.includes("科目") ? 'style="width: 22%;" class="text-start ps-3"' : '';
+    headHtml += `<th ${styleAttr}>${colName}</th>`;
+  }
+  headHtml += '</tr>';
+  thead.innerHTML = headHtml;
+  
+  let bodyHtml = "";
+  for (let r = 1; r < globalStudentData.length; r++) {
+    const rowData = globalStudentData[r];
+    
+    const classNum = parseInt(String(rowData[2]).trim(), 10);
+    const isExtendedStudent = !isNaN(classNum) && classNum > 400;
+    const isMakeUp = String(rowData[7]).trim() === "補修";
+    
+    const cellBgClass = isMakeUp ? " bg-light-green" : "";
+    
+    bodyHtml += `<tr data-row-index="${r}">
+      <td class="text-center${cellBgClass}"><input type="checkbox" class="form-check-input student-item-checkbox"></td>`;
+    for (let c = 1; c <= 8; c++) {
+      const val = rowData[c] !== undefined ? rowData[c] : "";
+      let tdClass = "text-center" + cellBgClass;
+      
+      if (c === 8) {
+        tdClass += " fw-bold text-primary cell-student-session";
+      } else if (headerRow[c] && headerRow[c].includes("科目")) {
+        tdClass += " text-start ps-3";
+      }
+      
+      if (isExtendedStudent && !isMakeUp && c !== 8) {
+        tdClass += " text-deep-green";
+      }
+      
+      bodyHtml += `<td class="${tdClass}">${val}</td>`;
+    }
+    bodyHtml += '</tr>';
+  }
+  tbody.innerHTML = bodyHtml;
+}
+
+function renderSessionTable() {
+  const tbody = document.getElementById("sessionTableBody");
+  if (globalSessionData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">「配課」工作表中尚無上課班次。</td></tr>';
+    return;
+  }
+  
+  let sumSessions = 0;
+  let bodyHtml = "";
+  
+  globalSessionData.forEach((item, index) => {
+    const isSelected = (index === selectedSessionIndex);
+    const disabledAttr = isSelected ? "" : "disabled";
+    const displayHours = Number.isInteger(item.maxHours) ? item.maxHours : (item.maxHours || 0).toFixed(1);
+    
+    bodyHtml += `
+      <tr>
+        <td class="text-center">
+          <input type="radio" name="editSessionRadio" class="form-check-input" ${isSelected ? "checked" : ""} onchange="handleRadioChange(${index})">
+        </td>
+        <td class="p-1">
+          <input type="text" class="form-control form-control-sm session-name-input fw-bold text-success" 
+                 value="${item.session}" ${disabledAttr} ${item.isNew ? 'data-is-new="true" placeholder="請輸入新班次..."' : `data-old-name="${item.session}"`}>
+        </td>
+        <td class="text-center fw-bold text-secondary">${displayHours} 節</td>
+        <td class="text-center fw-bold text-secondary">${item.count} 人</td>
+        <td class="p-2 text-start">
+          <div class="form-check">
+            <input type="radio" name="courseType_${index}" value="專班" id="type1_${index}" class="form-check-input course-type-radio" 
+                   ${item.courseType === "專班" ? "checked" : ""} ${disabledAttr} onchange="globalSessionData[${index}].courseType='專班'; recalculateSessionCounts();">
+            <label class="form-check-label fw-bold text-dark" for="type1_${index}">專班</label>
+          </div>
+          <div class="form-check">
+            <input type="radio" name="courseType_${index}" value="自學輔導" id="type2_${index}" class="form-check-input course-type-radio" 
+                   ${item.courseType === "自學輔導" ? "checked" : ""} ${disabledAttr} onchange="globalSessionData[${index}].courseType='自學輔導'; recalculateSessionCounts();">
+            <label class="form-check-label fw-bold text-dark" for="type2_${index}">自學輔導</label>
+          </div>
+        </td>
+      </tr>`;
+    sumSessions += item.count;
+  });
+  
+  bodyHtml += `
+    <tr class="table-success fw-bold text-dark">
+      <td></td>
+      <td class="ps-3 text-success">人數總計</td>
+      <td></td>
+      <td class="text-center text-success">${sumSessions} 人</td>
+      <td></td>
+    </tr>`;
+    
+  tbody.innerHTML = bodyHtml;
+}
+
+// ==========================================
+// 4. 開課互動商務邏輯層
+// ==========================================
+function handleRadioChange(selectedIndex) {
+  selectedSessionIndex = selectedIndex;
+  
+  const inputs = document.querySelectorAll(".session-name-input");
+  inputs.forEach((input, idx) => {
+    if (idx === selectedIndex) { input.removeAttribute("disabled"); input.focus(); }
+    else { input.setAttribute("disabled", "true"); }
+  });
+  
+  globalSessionData.forEach((_, idx) => {
+    document.querySelectorAll(`input[name="courseType_${idx}"]`).forEach(r => {
+      if (idx === selectedIndex) r.removeAttribute("disabled");
+      else r.setAttribute("disabled", "true");
+    });
+  });
+
+  syncStudentCheckboxesWithSelectedSession();
+}
+
+function saveCurrentInputsToCache() {
+  const inputs = document.querySelectorAll(".session-name-input");
+  inputs.forEach((input, index) => {
+    if (globalSessionData[index]) {
+      globalSessionData[index].session = input.value.trim();
+      const checkedRadio = document.querySelector(`input[name="courseType_${index}"]:checked`);
+      if (checkedRadio) globalSessionData[index].courseType = checkedRadio.value;
+    }
+  });
+}
+
+function addNewSessionRow() {
+  saveCurrentInputsToCache();
+  globalSessionData.push({ session: "", count: 0, maxHours: 0, originalSession: "", isNew: true, courseType: "專班", extendedStatus: "" });
+  selectedSessionIndex = globalSessionData.length - 1;
+  renderSessionTable();
+  syncStudentCheckboxesWithSelectedSession();
+  const inputs = document.querySelectorAll(".session-name-input");
+  if (inputs.length > 0) inputs[inputs.length - 1].focus();
+}
+
+function deleteSessionRow() {
+  if (selectedSessionIndex === -1) return; 
+  saveCurrentInputsToCache();
+  
+  const target = globalSessionData[selectedSessionIndex];
+  const sessionName = target.session ? target.session.trim() : "";
+  
+  if (sessionName) {
+    for (let r = 1; r < globalStudentData.length; r++) {
+      if (String(globalStudentData[r][8]).trim() === sessionName) globalStudentData[r][8] = "";
+    }
+  }
+  if (!target.isNew && target.originalSession) deletedSessionsQueue.push(target.originalSession);
+  
+  globalSessionData.splice(selectedSessionIndex, 1);
+  selectedSessionIndex = -1;
+  
+  renderStudentTable();
+  recalculateSessionCounts();
+  syncStudentCheckboxesWithSelectedSession();
+}
+
+function handleDistribution() {
+  if (selectedSessionIndex === -1) return;
+  saveCurrentInputsToCache();
+  
+  const targetSessionName = globalSessionData[selectedSessionIndex].session.trim();
+  if (!targetSessionName) return;
+  
+  document.querySelectorAll("#courseTableBody tr").forEach(tr => {
+    const chk = tr.querySelector(".student-item-checkbox");
+    if (!chk) return;
+    
+    const arrayIndex = parseInt(tr.getAttribute("data-row-index"), 10);
+    const currentSession = String(globalStudentData[arrayIndex][8]).trim();
+    const cellSession = tr.querySelector(".cell-student-session");
+    
+    if (chk.checked) {
+      if (currentSession !== targetSessionName) {
+        globalStudentData[arrayIndex][8] = targetSessionName; 
+        if (cellSession) cellSession.textContent = targetSessionName; 
+      }
+    } else {
+      if (currentSession === targetSessionName) {
+        globalStudentData[arrayIndex][8] = ""; 
+        if (cellSession) cellSession.textContent = ""; 
+      }
+    }
+  });
+  
+  recalculateSessionCounts();
+}
+
+function recalculateSessionCounts() {
+  const studentIdx = 1; 
+  const classIdx = 2;   
+  const creditIdx = 6;  
+  const statusIdx = 7;  
+
+  globalSessionData.forEach(item => {
+    item.count = 0;
+    
+    let studentDistinctMap = {}; 
+    let studentHoursMap = {};    
+    let hasExtendedStudent = false; 
+    
+    const currentSessionName = item.session.trim();
+    const type = item.courseType || "專班";
+    
+    if (currentSessionName !== "") {
+      for (let r = 1; r < globalStudentData.length; r++) {
+        const studentSession = String(globalStudentData[r][8]).trim(); 
+        
+        if (studentSession === currentSessionName) {
+          const sKey = String(globalStudentData[r][studentIdx]).trim();
+          if (!sKey) continue;
+          
+          studentDistinctMap[sKey] = true;
+          
+          const creditValue = parseFloat(globalStudentData[r][creditIdx]) || 0;
+          const statusValue = String(globalStudentData[r][statusIdx]).trim();
+          
+          let rowHours = 0;
+          if (type === "專班") {
+            rowHours = creditValue * 6;
+          } else { 
+            if (statusValue === "補修") {
+              rowHours = creditValue * 6;
+            } else { 
+              rowHours = creditValue * 3;
+            }
+          }
+          
+          studentHoursMap[sKey] = (studentHoursMap[sKey] || 0) + rowHours;
+
+          const classNum = parseInt(String(globalStudentData[r][classIdx]).trim(), 10);
+          if (!isNaN(classNum) && classNum > 400) hasExtendedStudent = true;
+        }
+      }
+    }
+    
+    item.count = Object.keys(studentDistinctMap).length;
+    
+    const allStudentAccumulatedHours = Object.values(studentHoursMap);
+    item.maxHours = allStudentAccumulatedHours.length > 0 ? Math.max(...allStudentAccumulatedHours) : 0;
+    
+    item.extendedStatus = hasExtendedStudent ? "有延修生" : "";
+  });
+  
+  renderSessionTable();
+}
+
+function syncStudentCheckboxesWithSelectedSession() {
+  if (selectedSessionIndex === -1) {
+    clearAllStudentCheckboxes();
+    return;
+  }
+  saveCurrentInputsToCache();
+  const targetSessionName = globalSessionData[selectedSessionIndex] ? globalSessionData[selectedSessionIndex].session.trim() : "";
+
+  document.querySelectorAll("#courseTableBody tr").forEach(tr => {
+    const arrayIndex = parseInt(tr.getAttribute("data-row-index"), 10);
+    const chk = tr.querySelector(".student-item-checkbox");
+    if (chk) {
+      const studentSession = String(globalStudentData[arrayIndex][8]).trim();
+      chk.checked = (targetSessionName !== "" && studentSession === targetSessionName);
+    }
+  });
+}
+
+function clearAllStudentCheckboxes() {
+  document.querySelectorAll(".student-item-checkbox").forEach(chk => chk.checked = false);
+}
+
+function handleUpdateCourse() {
+  const btnUpdate = document.getElementById("btnUpdateCourse");
+  const sessionRenames = [];
+  const newSessions = [];
+  
+  saveCurrentInputsToCache();
+  
+  const finalSessionData = [];
+  
+  globalSessionData.forEach((item) => {
+    const currentName = item.session.trim();
+    
+    if (currentName === "") {
+      if (!item.isNew && item.originalSession) {
+        deletedSessionsQueue.push(item.originalSession);
+        
+        for (let r = 1; r < globalStudentData.length; r++) {
+          if (String(globalStudentData[r][8]).trim() === item.originalSession) {
+            globalStudentData[r][8] = "";
+          }
+        }
+      }
+    } else {
+      if (!item.isNew && item.originalSession && item.originalSession !== currentName) {
+        sessionRenames.push({ oldName: item.originalSession, newName: currentName });
+      } else if (item.isNew) {
+        newSessions.push(currentName);
+      }
+      finalSessionData.push(item);
+    }
+  });
+
+  const sessionRows = finalSessionData.map(item => {
+    return [
+      item.session, 
+      item.maxHours || 0, 
+      item.count, 
+      item.extendedStatus || "", 
+      item.courseType || "專班"
+    ];
+  });
+  
+  btnUpdate.disabled = true;
+  btnUpdate.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> 正在儲存班次並精準同步，請稍候...';
+  
+  callBackendAPI({ 
+    action: "updateCourseStatus", 
+    payload: { sessionRenames, newSessions, deletedSessions: deletedSessionsQueue, studentData: globalStudentData, sessionRows } 
+  }, function(response) {
+    btnUpdate.disabled = false;
+    btnUpdate.textContent = "更新班次";
+    
+    if (response.success) {
+      globalStudentData = response.studentData || response.data || [];
+      globalSessionData = (response.sessionData || []).map(s => ({ 
+        session: s.session, 
+        count: s.count, 
+        maxHours: s.maxHours || s.maxCredit || 0, 
+        originalSession: s.session, 
+        isNew: false, 
+        courseType: s.courseType || "專班", 
+        extendedStatus: s.extendedStatus || ""
+      }));
+      selectedSessionIndex = -1;
+      deletedSessionsQueue = [];
+      renderStudentTable();
+      recalculateSessionCounts(); 
+      syncStudentCheckboxesWithSelectedSession();
+    } else {
+      showButtonFeedback(btnUpdate, "更新失敗：" + response.message);
+    }
+  }, function(error) {
+    btnUpdate.disabled = false;
+    showButtonFeedback(btnUpdate, "連線錯誤");
+  });
+}
+
+// ==========================================
+// 5. 排課功能模組
+// ==========================================
+
+function handleScheduleClick() {
+  hideAllWorkZones();
+  
+  document.getElementById("scheduleLeftTitle").textContent = "排課工作區";
+  document.getElementById("scheduleLeftContent").innerHTML = '<div class="text-muted text-center py-5">請點選右側功能按鈕開始操作。</div>';
+  
+  document.getElementById("scheduleZone").style.display = "block";
+}
+
+function handleImportantDatesClick() {
+  const btn = document.getElementById("btnImportantDates");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 載入中...';
+  
+  document.getElementById("scheduleLeftTitle").textContent = "填寫重要日期";
+  
+  callBackendAPI({ action: "getImportantDates" }, function(response) {
+    btn.disabled = false;
+    btn.textContent = "填寫重要日期";
+    
+    if (!response.success) {
+      alert("載入失敗: " + response.message);
+      return;
+    }
+    
+    globalImportantDates = response.dateData || [];
+    selectedDateIndex = -1;
+    renderImportantDatesTable();
+  }, function(error) {
+    btn.disabled = false;
+    btn.textContent = "填寫重要日期";
+    alert("連線錯誤: " + error.message);
+  });
+}
+
+function handleClassTimesClick() {
+  document.getElementById("scheduleLeftTitle").textContent = "填寫上課時間";
+  document.getElementById("scheduleLeftContent").innerHTML = '<div class="text-muted text-center py-5">「填寫上課時間」功能區塊準備中...</div>';
+}
+
+function handleConflictCheckClick() {
+  document.getElementById("scheduleLeftTitle").textContent = "衝堂檢查";
+  document.getElementById("scheduleLeftContent").innerHTML = '<div class="text-muted text-center py-5">「衝堂檢查」功能區塊準備中...</div>';
+}
+
+function renderImportantDatesTable() {
+  const container = document.getElementById("scheduleLeftContent");
+  
+  let tableHtml = `
+    <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+      <table class="table table-bordered table-hover align-middle bg-white">
+        <thead class="table-light text-center sticky-top">
+          <tr>
+            <th style="width: 12%;">選擇</th>
+            <th style="width: 38%;">日期</th>
+            <th style="width: 50%;">說明</th>
+          </tr>
+        </thead>
+        <tbody id="importantDatesTableBody">`;
+        
+  if (globalImportantDates.length === 0) {
+    tableHtml += '<tr><td colspan="3" class="text-center text-muted py-3">尚無重要日期，請點擊下方「新增」按鈕建立。</td></tr>';
+  } else {
+    globalImportantDates.forEach((item, index) => {
+      const isSelected = (index === selectedDateIndex);
+      const isFixedRow = (index < 8); 
+      
+      const dateDisabledStr = isSelected ? "" : "disabled";
+      const descDisabledStr = (isSelected && !isFixedRow) ? "" : "disabled";
+      
+      tableHtml += `
+        <tr>
+          <td class="text-center">
+            <input type="radio" name="dateSelectRadio" class="form-check-input" ${isSelected ? "checked" : ""} onchange="handleDateRadioChange(${index})">
+          </td>
+          <td>
+            <input type="date" class="form-control form-control-sm date-input fw-bold text-dark" value="${item.date || ''}" ${dateDisabledStr}>
+          </td>
+          <td>
+            <input type="text" class="form-control form-control-sm desc-input" value="${item.description || ''}" ${descDisabledStr} ${isFixedRow ? 'placeholder="系統預設固定欄位"' : 'placeholder="請輸入說明..."'}>
+          </td>
+        </tr>`;
+    });
+  }
+  
+  tableHtml += `
+        </tbody>
+      </table>
+    </div>
+    <div class="d-flex gap-2 mt-3">
+      <button id="btnAddDateRow" class="btn btn-outline-primary flex-fill" onclick="addImportantDateRow()">新增</button>
+      <button id="btnSaveDates" class="btn btn-primary flex-fill" onclick="handleSaveImportantDates()">更新</button>
+    </div>
+    <small class="text-muted d-block mt-2 text-center">※ 提示：點選 RADIO 即可開啟該列編輯能力；前 8 列說明為系統預設項目，無法刪除或修改說明內容。</small>`;
+    
+  container.innerHTML = tableHtml;
+}
+
+function handleDateRadioChange(selectedIndex) {
+  selectedDateIndex = selectedIndex;
+  saveDateInputsToCache();
+  
+  const rows = document.querySelectorAll("#importantDatesTableBody tr");
+  rows.forEach((tr, idx) => {
+    const isSelected = (idx === selectedIndex);
+    const isFixedRow = (idx < 8); 
+    
+    const dateInput = tr.querySelector(".date-input");
+    const descInput = tr.querySelector(".desc-input");
+    
+    if (dateInput) {
+      if (isSelected) dateInput.removeAttribute("disabled");
+      else dateInput.setAttribute("disabled", "true");
+    }
+    
+    if (descInput) {
+      if (isSelected && !isFixedRow) descInput.removeAttribute("disabled");
+      else descInput.setAttribute("disabled", "true");
+    }
+  });
+}
+
+function saveDateInputsToCache() {
+  const rows = document.querySelectorAll("#importantDatesTableBody tr");
+  rows.forEach((tr, idx) => {
+    if (globalImportantDates[idx]) {
+      const dateInput = tr.querySelector(".date-input");
+      const descInput = tr.querySelector(".desc-input");
+      
+      if (dateInput) globalImportantDates[idx].date = dateInput.value;
+      
+      if (descInput && idx >= 8) {
+        globalImportantDates[idx].description = descInput.value.trim();
+      }
+    }
+  });
+}
+
+function addImportantDateRow() {
+  saveDateInputsToCache();
+  
+  const today = new Date().toISOString().split('T')[0];
+  
+  globalImportantDates.push({ date: today, description: "" });
+  selectedDateIndex = globalImportantDates.length - 1;
+  
+  renderImportantDatesTable();
+  
+  const descInputs = document.querySelectorAll("#importantDatesTableBody .desc-input");
+  if (descInputs.length > 0) {
+    const lastDescInput = descInputs[descInputs.length - 1];
+    lastDescInput.removeAttribute("disabled");
+    lastDescInput.focus();
+  }
+}
+
+function handleSaveImportantDates() {
+  saveDateInputsToCache();
+  
+  const btnSave = document.getElementById("btnSaveDates");
+  btnSave.disabled = true;
+  btnSave.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 正在寫回試算表...';
+  
+  callBackendAPI({
+    action: "updateImportantDates",
+    payload: { dateData: globalImportantDates }
+  }, function(response) {
+    btnSave.disabled = false;
+    btnSave.textContent = "更新";
+    
+    if (response.success) {
+      globalImportantDates = response.dateData || [];
+      selectedDateIndex = -1;
+      renderImportantDatesTable();
+      alert("✓ 重要日期已成功儲存並同步至試算表！");
+    } else {
+      alert("❌ 更新失敗：" + response.message);
+    }
+  }, function(error) {
+    btnSave.disabled = false;
+    btnSave.textContent = "更新";
+    alert("❌ 連線錯誤: " + error.message);
+  });
+}
+
+// ==========================================
+// 6. 通用 UI 切換與輔助函式
+// ==========================================
+function hideAllWorkZones() {
+  document.getElementById("courseZone").style.display = "none";
+  document.getElementById("scheduleZone").style.display = "none";
+}
+
+function toggleActionButtons(disabled, spinnerStyle = 'primary', text = '') {
+  const ids = ["btnConvert", "btnConsolidate", "btnCourse", "btnSchedule"];
+  ids.forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = disabled;
+  });
+  
+  const statusDiv = document.getElementById("statusMessage");
+  if (disabled) {
+    document.getElementById("uploadArea").style.display = "none";
+    statusDiv.style.display = "block";
+    statusDiv.className = "mt-3 text-muted";
+    statusDiv.innerHTML = `<span class="spinner-border spinner-border-sm text-${spinnerStyle}" role="status"></span> ${text}`;
+  }
+}
+
+function showStatusMessage(isSuccess, text, overrideStyle = null) {
+  const statusDiv = document.getElementById("statusMessage");
+  statusDiv.style.display = "block";
+  if (overrideStyle) {
+    statusDiv.className = `mt-3 text-${overrideStyle} fw-bold`;
+    statusDiv.innerHTML = text;
+  } else {
+    statusDiv.className = isSuccess ? "mt-3 text-success fw-bold" : "mt-3 text-danger fw-bold";
+    statusDiv.innerHTML = isSuccess ? "✓ " + text : "❌ " + text;
+  }
+}
+
+function showButtonFeedback(btn, errorText) {
+  btn.textContent = errorText;
+  btn.classList.add("btn-danger");
+  setTimeout(() => {
+    btn.textContent = "更新班次";
+    btn.classList.remove("btn-danger");
+  }, 4000);
+}
+</script>
 </body>
 </html>
