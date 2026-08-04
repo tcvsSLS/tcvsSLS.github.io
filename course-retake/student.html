@@ -96,17 +96,17 @@
   <div id="course-table-block" class="work-zone d-none">
     <div class="d-flex justify-content-between align-items-center flex-wrap g-2">
       <h5 class="m-0">📚 可重補修科目清單</h5>
-      <span class="badge bg-secondary p-2">提示：勾選即可加選，取消勾選即為退選</span>
+      <span id="application-notice" class="badge bg-secondary p-2">提示：勾選即可加選，取消勾選即為退選</span>
     </div>
 
     <div class="table-responsive mt-3 bg-white p-3 border rounded">
       <table class="table table-bordered align-middle m-0" id="course-table">
         <thead class="table-light text-secondary">
           <tr>
-            <th style="width: 70px;" class="text-center">選取</th>
+            <th id="th-select" style="width: 70px;" class="text-center">選取</th>
             <th>年級/學期</th>
             <th>科目名稱</th>
-            <th style="width: 80px;" class="text-center">學分</th>
+            <style="width: 80px;" class="text-center">學分</th>
             <th>科目狀態</th>
             <th style="width: 140px;" class="text-center">目前申請狀況</th>
           </tr>
@@ -117,7 +117,8 @@
       </table>
     </div>
 
-    <div class="d-flex justify-content-between align-items-center mt-4 border-top pt-3 flex-wrap g-2">
+    <!-- 將整個送出登記的區塊加上 id="submit-block" -->
+    <div id="submit-block" class="d-flex justify-content-between align-items-center mt-4 border-top pt-3 flex-wrap g-2">
       <div class="text-secondary small fw-bold">
         ※ 送出異動後，系統會自動同步至申請名冊，並發送明細信至您的信箱。
       </div>
@@ -192,7 +193,22 @@
         document.getElementById("info-id").innerText = data.studentInfo.id;
         document.getElementById("student-info-block").classList.remove("d-none");
 
-        renderCourseTable(data.courseList);
+        // 控制提示文字、表頭選取欄位以及整個送出按鈕區塊
+        const noticeEl = document.getElementById("application-notice");
+        const thSelectEl = document.getElementById("th-select");
+        const submitBlockEl = document.getElementById("submit-block");
+
+        if (data.isOpen) {
+          noticeEl.innerText = "提示：勾選即可加選，取消勾選即為退選";
+          thSelectEl.classList.remove("d-none");
+          submitBlockEl.classList.remove("d-none");
+        } else {
+          noticeEl.innerText = "已超過申請時間，僅顯示申請狀況";
+          thSelectEl.classList.add("d-none");
+          submitBlockEl.classList.add("d-none"); // 隱藏整個底部送出區塊
+        }
+
+        renderCourseTable(data.courseList, data.isOpen);
         document.getElementById("course-table-block").classList.remove("d-none");
       } else {
         msgDiv.innerText = data.msg;
@@ -210,8 +226,7 @@
     });
   }
 
-  // 💡 主要修改此區塊：渲染清單時進行篩選過濾
-  function renderCourseTable(courses) {
+  function renderCourseTable(courses, isOpen) {
     const tbody = document.getElementById("course-tbody");
     tbody.innerHTML = "";
 
@@ -221,7 +236,7 @@
 
       // ⭐ 核心條件：如果狀態是「補修」，且名稱包含「原住民族語文」或「客語文」，則不渲染該列資料
       if (mainStatus === "補修" && (subjectName.includes("原住民族語文") || subjectName.includes("客語文"))) {
-        return; // 跳過此筆資料，直接進入下一輪迴圈
+        return; // 跳過此筆資料，進入下一輪迴圈
       }
 
       const tr = document.createElement("tr");
@@ -243,11 +258,16 @@
         statusDisplayHtml = `<span class="badge bg-secondary status-badge">${mainStatus}</span>`;
       }
 
-      tr.innerHTML = `
+      // 只有在開放時間內，才顯示「選取」欄位的 <td>
+      const selectTdHtml = isOpen ? `
         <td class="text-center">
           <input type="checkbox" class="form-check-input course-checkbox" 
                  data-index="${index}" ${checkedAttr} style="transform: scale(1.2); cursor: pointer;">
         </td>
+      ` : '';
+
+      tr.innerHTML = `
+        ${selectTdHtml}
         <td>${course.grade} / ${course.semester}學期</td>
         <td class="fw-bold">${course.subject}</td>
         <td class="text-center">${course.credit}</td>
@@ -261,22 +281,24 @@
       tbody.appendChild(tr);
     });
 
-    document.querySelectorAll(".course-checkbox").forEach(chk => {
-      chk.addEventListener("change", function() {
-        const idx = this.getAttribute("data-index");
-        const targetTr = this.closest("tr");
-        const statusTd = document.getElementById(`status-text-${idx}`);
-        const originalReg = courses[idx].reg === "已登記";
+    if (isOpen) {
+      document.querySelectorAll(".course-checkbox").forEach(chk => {
+        chk.addEventListener("change", function() {
+          const idx = this.getAttribute("data-index");
+          const targetTr = this.closest("tr");
+          const statusTd = document.getElementById(`status-text-${idx}`);
+          const originalReg = courses[idx].reg === "已登記";
 
-        if (this.checked) {
-          targetTr.classList.add("row-registered");
-          statusTd.innerText = originalReg ? "★ 已登記申請" : "＋ 本次待加選";
-        } else {
-          targetTr.classList.remove("row-registered");
-          statusTd.innerText = originalReg ? "－ 本次待退選" : "—";
-        }
+          if (this.checked) {
+            targetTr.classList.add("row-registered");
+            statusTd.innerText = originalReg ? "★ 已登記申請" : "＋ 本次待加選";
+          } else {
+            targetTr.classList.remove("row-registered");
+            statusTd.innerText = originalReg ? "－ 本次待退選" : "—";
+          }
+        });
       });
-    });
+    }
   }
 
   function submitRegData() {
