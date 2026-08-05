@@ -45,6 +45,7 @@
     <button id="btnConsolidate" class="btn btn-primary ms-2" onclick="handleConsolidate()">整合申請資料</button>
     <button id="btnCourse" class="btn btn-primary ms-2" onclick="handleCourseClick()">開課</button>
     <button id="btnSchedule" class="btn btn-primary ms-2" onclick="handleScheduleClick()">排課</button>
+    <button id="btnFee" class="btn btn-primary ms-2" onclick="handleGenerateFeeData()">產生收費資料</button>
     
     <!-- 檔案上傳區塊 -->
     <div id="uploadArea" class="upload-box" style="display: none;">
@@ -120,6 +121,7 @@
       
       <!-- 👉 右半邊：排課功能清單 -->
       <div class="col-md-5">
+        <div id="scheduleRightTop"></div> <!-- 動態繪製「配課表」區塊 -->
         <h5 class="text-success mb-3">排課功能清單</h5>
         <div class="d-grid gap-2">
           <button id="btnImportantDates" class="btn btn-primary w-100" onclick="handleImportantDatesClick()">
@@ -153,6 +155,11 @@ let deletedSessionsQueue = [];
 let globalImportantDates = [];
 let selectedDateIndex = -1;
 
+let globalScheduleSessionData = [];
+let selectedScheduleSessionIndex = -1;
+let currentClassScheduleRows = [];
+let selectedScheduleRowIndex = -1;
+
 function initSystem() {
   console.log("重補修系統初始化完成");
 }
@@ -172,7 +179,7 @@ function callBackendAPI(payload, successCallback, failureCallback) {
 }
 
 // ==========================================
-// 2. 資料準備功能區 (建立、整合、上傳)
+// 2. 資料準備功能區 (建立、整合、上傳、產生收費資料)
 // ==========================================
 function handleConvert() {
   hideAllWorkZones();
@@ -193,6 +200,18 @@ function handleConsolidate() {
   hideAllWorkZones();
   toggleActionButtons(true, 'primary', '正在掃描各班級資料表並整合申請資料，請稍候...');
   callBackendAPI({ action: "consolidate" }, function(response) {
+    toggleActionButtons(false);
+    showStatusMessage(response.success, response.message);
+  }, function(error) {
+    toggleActionButtons(false);
+    showStatusMessage(false, "系統連線錯誤: " + error.message);
+  });
+}
+
+function handleGenerateFeeData() {
+  hideAllWorkZones();
+  toggleActionButtons(true, 'primary', '正在計算學生修習學分與身分減免並產生收費資料，請稍候...');
+  callBackendAPI({ action: "generateFeeData" }, function(response) {
     toggleActionButtons(false);
     showStatusMessage(response.success, response.message);
   }, function(error) {
@@ -263,7 +282,8 @@ function handleCourseClick() {
       originalSession: s.session,
       isNew: false,
       courseType: s.courseType || "專班",
-      extendedStatus: s.extendedStatus || ""
+      extendedStatus: s.extendedStatus || "",
+      classTime: s.classTime || ""
     }));
     
     selectedSessionIndex = -1;
@@ -425,7 +445,16 @@ function saveCurrentInputsToCache() {
 
 function addNewSessionRow() {
   saveCurrentInputsToCache();
-  globalSessionData.push({ session: "", count: 0, maxHours: 0, originalSession: "", isNew: true, courseType: "專班", extendedStatus: "" });
+  globalSessionData.push({ 
+    session: "", 
+    count: 0, 
+    maxHours: 0, 
+    originalSession: "", 
+    isNew: true, 
+    courseType: "專班", 
+    extendedStatus: "", 
+    classTime: "" 
+  });
   selectedSessionIndex = globalSessionData.length - 1;
   renderSessionTable();
   syncStudentCheckboxesWithSelectedSession();
@@ -605,7 +634,10 @@ function handleUpdateCourse() {
       item.maxHours || 0, 
       item.count, 
       item.extendedStatus || "", 
-      item.courseType || "專班"
+      item.courseType || "專班",
+      "",
+      "",
+      item.classTime || ""
     ];
   });
   
@@ -628,7 +660,8 @@ function handleUpdateCourse() {
         originalSession: s.session, 
         isNew: false, 
         courseType: s.courseType || "專班", 
-        extendedStatus: s.extendedStatus || ""
+        extendedStatus: s.extendedStatus || "",
+        classTime: s.classTime || ""
       }));
       selectedSessionIndex = -1;
       deletedSessionsQueue = [];
@@ -650,6 +683,7 @@ function handleUpdateCourse() {
 
 function handleScheduleClick() {
   hideAllWorkZones();
+  document.getElementById("scheduleRightTop").innerHTML = ""; 
   
   document.getElementById("scheduleLeftTitle").textContent = "排課工作區";
   document.getElementById("scheduleLeftContent").innerHTML = '<div class="text-muted text-center py-5">請點選右側功能按鈕開始操作。</div>';
@@ -658,6 +692,8 @@ function handleScheduleClick() {
 }
 
 function handleImportantDatesClick() {
+  document.getElementById("scheduleRightTop").innerHTML = ""; 
+  
   const btn = document.getElementById("btnImportantDates");
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 載入中...';
@@ -683,16 +719,6 @@ function handleImportantDatesClick() {
   });
 }
 
-function handleClassTimesClick() {
-  document.getElementById("scheduleLeftTitle").textContent = "填寫上課時間";
-  document.getElementById("scheduleLeftContent").innerHTML = '<div class="text-muted text-center py-5">「填寫上課時間」功能區塊準備中...</div>';
-}
-
-function handleConflictCheckClick() {
-  document.getElementById("scheduleLeftTitle").textContent = "衝堂檢查";
-  document.getElementById("scheduleLeftContent").innerHTML = '<div class="text-muted text-center py-5">「衝堂檢查」功能區塊準備中...</div>';
-}
-
 function renderImportantDatesTable() {
   const container = document.getElementById("scheduleLeftContent");
   
@@ -714,7 +740,7 @@ function renderImportantDatesTable() {
   } else {
     globalImportantDates.forEach((item, index) => {
       const isSelected = (index === selectedDateIndex);
-      const isFixedRow = (index < 8); // 前 8 列為系統固定預設項目
+      const isFixedRow = (index < 8);
       
       const dateDisabledStr = isSelected ? "" : "disabled";
       const descDisabledStr = (isSelected && !isFixedRow) ? "" : "disabled";
@@ -723,10 +749,8 @@ function renderImportantDatesTable() {
       let remarkTdContent = '';
       
       if (isFixedRow) {
-        // 第 1 至 8 列備註保持空白
         remarkTdContent = '<td class="text-center text-muted"></td>';
       } else {
-        // 第 9 列起顯示 radio 群組（全日可排課 / 不宜排課）
         const remarkVal = item.remark || "全日可排課";
         remarkTdContent = `
           <td class="p-2 text-start">
@@ -812,10 +836,7 @@ function saveDateInputsToCache() {
       const descInput = tr.querySelector(".desc-input");
       
       if (dateInput) globalImportantDates[idx].date = dateInput.value;
-      
-      if (descInput && idx >= 8) {
-        globalImportantDates[idx].description = descInput.value.trim();
-      }
+      if (descInput && idx >= 8) globalImportantDates[idx].description = descInput.value.trim();
 
       if (idx >= 8) {
         const checkedRadio = tr.querySelector(`input[name="dateRemark_${idx}"]:checked`);
@@ -833,13 +854,9 @@ function saveDateInputsToCache() {
 
 function addImportantDateRow() {
   saveDateInputsToCache();
-  
   const today = new Date().toISOString().split('T')[0];
-  
-  // 第 9 列起新增時預設備註為「全日可排課」
   globalImportantDates.push({ date: today, description: "", remark: "全日可排課" });
   selectedDateIndex = globalImportantDates.length - 1;
-  
   renderImportantDatesTable();
   
   const descInputs = document.querySelectorAll("#importantDatesTableBody .desc-input");
@@ -852,7 +869,6 @@ function addImportantDateRow() {
 
 function handleSaveImportantDates() {
   saveDateInputsToCache();
-  
   const btnSave = document.getElementById("btnSaveDates");
   btnSave.disabled = true;
   btnSave.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 正在寫回試算表...';
@@ -879,6 +895,505 @@ function handleSaveImportantDates() {
   });
 }
 
+// ------------------------------------------
+// 5.1 填寫上課時間子模組
+// ------------------------------------------
+
+function handleClassTimesClick() {
+  const btn = document.getElementById("btnClassTimes");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 載入中...';
+
+  callBackendAPI({ action: "getClassTimesData" }, function(response) {
+    btn.disabled = false;
+    btn.textContent = "填寫上課時間";
+
+    if (!response.success) {
+      alert("載入失敗: " + response.message);
+      return;
+    }
+
+    globalScheduleSessionData = response.sessionData || [];
+    globalImportantDates = response.importantDates || [];
+
+    if (globalScheduleSessionData.length === 0) {
+      alert("⚠️ 「配課」工作表中尚無班次資料，請先至「開課」模組建立班次！");
+      return;
+    }
+
+    selectedScheduleSessionIndex = 0; 
+    renderScheduleSessionTable();
+    loadScheduleForSelectedSession();
+
+  }, function(error) {
+    btn.disabled = false;
+    btn.textContent = "填寫上課時間";
+    alert("連線錯誤: " + error.message);
+  });
+}
+
+function renderScheduleSessionTable() {
+  const container = document.getElementById("scheduleRightTop");
+  let html = `
+    <h5 class="text-success mb-2">配課表</h5>
+    <div class="table-responsive mb-3" style="max-height: 230px; overflow-y: auto;">
+      <table class="table table-bordered table-striped align-middle bg-white mb-0">
+        <thead class="table-light text-center sticky-top">
+          <tr>
+            <th style="width: 10%;">選取</th>
+            <th style="width: 35%;">班次</th>
+            <th style="width: 18%;">上課節數</th>
+            <th style="width: 15%;">人數</th>
+            <th style="width: 22%;">開課類型</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+  if (globalScheduleSessionData.length === 0) {
+    html += '<tr><td colspan="5" class="text-center text-muted py-2">無班次資料</td></tr>';
+  } else {
+    globalScheduleSessionData.forEach((item, index) => {
+      const isSelected = (index === selectedScheduleSessionIndex);
+      const displayHours = Number.isInteger(item.maxHours) ? item.maxHours : (item.maxHours || 0).toFixed(1);
+      html += `
+        <tr>
+          <td class="text-center">
+            <input type="radio" name="scheduleSessionRadio" class="form-check-input" ${isSelected ? "checked" : ""} onchange="handleScheduleSessionChange(${index})">
+          </td>
+          <td class="fw-bold text-success ps-2">${item.session}</td>
+          <td class="text-center text-secondary fw-bold">${displayHours} 節</td>
+          <td class="text-center text-secondary fw-bold">${item.count} 人</td>
+          <td class="text-center text-dark">${item.courseType || '專班'}</td>
+        </tr>`;
+    });
+  }
+
+  html += `
+        </tbody>
+      </table>
+    </div>`;
+  container.innerHTML = html;
+}
+
+function handleScheduleSessionChange(index) {
+  selectedScheduleSessionIndex = index;
+  loadScheduleForSelectedSession();
+}
+
+function loadScheduleForSelectedSession() {
+  const currentSession = globalScheduleSessionData[selectedScheduleSessionIndex];
+  if (!currentSession) return;
+
+  document.getElementById("scheduleLeftTitle").textContent = "填寫上課時間 — " + currentSession.session;
+
+  currentClassScheduleRows = parseClassTimeString(currentSession.classTime);
+
+  if (currentClassScheduleRows.length === 0) {
+    const defaultDate = globalImportantDates[6] ? globalImportantDates[6].date : "";
+    currentClassScheduleRows.push({ date: defaultDate, periods: [] });
+  }
+
+  selectedScheduleRowIndex = 0; 
+  renderClassTimesScheduleTable();
+}
+
+function renderClassTimesScheduleTable() {
+  const container = document.getElementById("scheduleLeftContent");
+  
+  const minDate = globalImportantDates[6] ? globalImportantDates[6].date : "";
+  const maxDate = globalImportantDates[7] ? globalImportantDates[7].date : "";
+
+  const currentSession = globalScheduleSessionData[selectedScheduleSessionIndex];
+  const targetHours = currentSession ? (Number.isInteger(currentSession.maxHours) ? currentSession.maxHours : (currentSession.maxHours || 0)) : 0;
+
+  let totalCheckedCount = 0; 
+
+  let tableHtml = `
+    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+      <table class="table table-bordered align-middle bg-white">
+        <thead class="table-light text-center sticky-top">
+          <tr>
+            <th style="width: 10%;">選取</th>
+            <th style="width: 25%;">日期</th>
+            <th style="width: 45%;">節次</th>
+            <th style="width: 20%;">備註</th>
+          </tr>
+        </thead>
+        <tbody id="scheduleTimesTableBody">`;
+
+  if (currentClassScheduleRows.length === 0) {
+    tableHtml += '<tr><td colspan="4" class="text-center text-muted py-3">目前無排課資料，請點擊下方「新增」按鈕建立。</td></tr>';
+  } else {
+    currentClassScheduleRows.forEach((row, rowIndex) => {
+      const isSelected = (rowIndex === selectedScheduleRowIndex);
+      const disabledAttr = isSelected ? "" : "disabled";
+
+      const matchedImportant = globalImportantDates.slice(8).find(item => item.date === row.date);
+
+      let remarkText = "";
+      let periodsHtml = "";
+
+      if (matchedImportant) {
+        remarkText = matchedImportant.description || "";
+        if (matchedImportant.remark === "不宜排課") {
+          periodsHtml = '<span class="text-danger fw-bold">不宜排課</span>';
+          row.periods = []; 
+        } else {
+          periodsHtml = renderPeriodCheckboxes(rowIndex, [1, 2, 3, 4, 5, 6, 7, 8, 9], row.periods, isSelected);
+        }
+      } else {
+        remarkText = "";
+        const day = getDayOfWeek(row.date);
+        if (day === 0 || day === 6) {
+          periodsHtml = renderPeriodCheckboxes(rowIndex, [1, 2, 3, 4, 5, 6, 7, 8, 9], row.periods, isSelected);
+        } else if (day >= 1 && day <= 5) {
+          row.periods = (row.periods || []).filter(p => p === 8 || p === 9);
+          periodsHtml = renderPeriodCheckboxes(rowIndex, [8, 9], row.periods, isSelected);
+        } else {
+          periodsHtml = '<span class="text-muted small">請選擇日期</span>';
+        }
+      }
+
+      totalCheckedCount += (row.periods ? row.periods.length : 0);
+
+      const remarkParts = [];
+      if (remarkText) {
+        remarkParts.push(remarkText);
+      }
+
+      if (row.date && row.periods && row.periods.length > 0) {
+        globalScheduleSessionData.forEach((otherSession, otherIdx) => {
+          if (otherIdx !== selectedScheduleSessionIndex && otherSession.classTime) {
+            const otherScheduleRows = parseClassTimeString(otherSession.classTime);
+            const otherPeriodsOnDate = [];
+
+            otherScheduleRows.forEach(osr => {
+              if (osr.date === row.date && osr.periods) {
+                otherPeriodsOnDate.push(...osr.periods);
+              }
+            });
+
+            const commonPeriods = row.periods
+              .filter(p => otherPeriodsOnDate.includes(p))
+              .sort((a, b) => a - b);
+            
+            const uniqueCommon = [...new Set(commonPeriods)];
+
+            if (uniqueCommon.length > 0) {
+              remarkParts.push(`<span class="text-danger fw-bold">第${uniqueCommon.join('、')}節已排${otherSession.session}</span>`);
+            }
+          }
+        });
+      }
+
+      const finalRemarkDisplay = remarkParts.join('<br>');
+
+      tableHtml += `
+        <tr>
+          <td class="text-center">
+            <input type="radio" name="scheduleRowRadio" class="form-check-input" ${isSelected ? "checked" : ""} onchange="handleScheduleRowRadioChange(${rowIndex})">
+          </td>
+          <td>
+            <input type="date" class="form-control form-control-sm schedule-date-input fw-bold text-dark" 
+                   value="${row.date || ''}" ${disabledAttr} onchange="handleScheduleDateChange(${rowIndex}, this.value)">
+          </td>
+          <td class="p-2 text-start">
+            ${periodsHtml}
+          </td>
+          <td class="text-center text-secondary fw-bold small align-middle">
+            ${finalRemarkDisplay}
+          </td>
+        </tr>`;
+    });
+  }
+
+  tableHtml += `
+        </tbody>
+        <tfoot>
+          <tr class="table-light text-center fw-bold text-primary">
+            <td colspan="4">應排${targetHours}節，已排${totalCheckedCount}節</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="d-flex gap-2 mt-3">
+      <button id="btnAddScheduleRow" class="btn btn-outline-primary flex-fill" onclick="addScheduleRow()">新增</button>
+      <button id="btnSaveScheduleTime" class="btn btn-primary flex-fill" onclick="handleSaveScheduleTime()">更新</button>
+    </div>
+    <small class="text-muted d-block mt-2 text-center">※ 提示：上課期程為（${minDate}）起至（${maxDate}）為止。</small>`;
+
+  container.innerHTML = tableHtml;
+}
+
+function renderPeriodCheckboxes(rowIndex, periodList, selectedPeriods, isSelected) {
+  const disabledAttr = isSelected ? "" : "disabled";
+  let html = '<span class="fw-bold me-1">第</span>';
+  periodList.forEach(p => {
+    const checked = (selectedPeriods && selectedPeriods.includes(p)) ? "checked" : "";
+    html += `
+      <div class="form-check form-check-inline me-1 ms-1">
+        <input class="form-check-input schedule-period-chk" type="checkbox" id="chk_${rowIndex}_${p}" value="${p}" ${checked} ${disabledAttr} onchange="handlePeriodCheckChange(${rowIndex}, ${p}, this.checked)">
+        <label class="form-check-label small fw-bold" for="chk_${rowIndex}_${p}">${p}</label>
+      </div>`;
+  });
+  html += '<span class="fw-bold ms-1">節</span>';
+  return html;
+}
+
+function handleScheduleRowRadioChange(rowIndex) {
+  selectedScheduleRowIndex = rowIndex;
+  renderClassTimesScheduleTable();
+}
+
+function handleScheduleDateChange(rowIndex, newDate) {
+  const minDate = globalImportantDates[6] ? globalImportantDates[6].date : "";
+  const maxDate = globalImportantDates[7] ? globalImportantDates[7].date : "";
+  const defaultDate = globalImportantDates[6] ? globalImportantDates[6].date : "";
+
+  if (minDate && maxDate && newDate) {
+    if (newDate < minDate || newDate > maxDate) {
+      alert("選取的日期不能超出上課期程，請重選");
+      currentClassScheduleRows[rowIndex].date = defaultDate;
+      currentClassScheduleRows[rowIndex].periods = [];
+      renderClassTimesScheduleTable();
+      return;
+    }
+  }
+
+  currentClassScheduleRows[rowIndex].date = newDate;
+  currentClassScheduleRows[rowIndex].periods = []; 
+  renderClassTimesScheduleTable();
+}
+
+function handlePeriodCheckChange(rowIndex, periodNum, isChecked) {
+  if (!currentClassScheduleRows[rowIndex].periods) {
+    currentClassScheduleRows[rowIndex].periods = [];
+  }
+  if (isChecked) {
+    if (!currentClassScheduleRows[rowIndex].periods.includes(periodNum)) {
+      currentClassScheduleRows[rowIndex].periods.push(periodNum);
+    }
+  } else {
+    currentClassScheduleRows[rowIndex].periods = currentClassScheduleRows[rowIndex].periods.filter(p => p !== periodNum);
+  }
+  renderClassTimesScheduleTable();
+}
+
+function addScheduleRow() {
+  const defaultDate = globalImportantDates[6] ? globalImportantDates[6].date : "";
+  currentClassScheduleRows.push({ date: defaultDate, periods: [] });
+  selectedScheduleRowIndex = currentClassScheduleRows.length - 1;
+  renderClassTimesScheduleTable();
+}
+
+function handleSaveScheduleTime() {
+  const currentSession = globalScheduleSessionData[selectedScheduleSessionIndex];
+  if (!currentSession) {
+    alert("未選取任何班次！");
+    return;
+  }
+
+  const formattedClassTime = buildClassTimeString(currentClassScheduleRows);
+
+  const btnSave = document.getElementById("btnSaveScheduleTime");
+  btnSave.disabled = true;
+  btnSave.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 寫入中...';
+
+  callBackendAPI({
+    action: "updateClassTime",
+    payload: {
+      session: currentSession.session,
+      classTime: formattedClassTime
+    }
+  }, function(response) {
+    btnSave.disabled = false;
+    btnSave.textContent = "更新";
+
+    if (response.success) {
+      currentSession.classTime = formattedClassTime;
+      const targetSessionInGlobal = globalSessionData.find(s => s.session === currentSession.session);
+      if (targetSessionInGlobal) {
+        targetSessionInGlobal.classTime = formattedClassTime;
+      }
+      alert("✓ 已成功將上課時間「" + formattedClassTime + "」寫回「配課」工作表 H 欄！");
+    } else {
+      alert("❌ 更新失敗：" + response.message);
+    }
+  }, function(error) {
+    btnSave.disabled = false;
+    btnSave.textContent = "更新";
+    alert("❌ 連線錯誤: " + error.message);
+  });
+}
+
+// ------------------------------------------
+// 5.2 輔助解析與日格式轉換函式
+// ------------------------------------------
+
+function parseClassTimeString(rawStr) {
+  if (!rawStr || typeof rawStr !== 'string') return [];
+  const parts = rawStr.split(/[；;]/);
+  const dateMap = new Map();
+
+  parts.forEach(part => {
+    part = part.trim();
+    if (!part) return;
+    const match = part.match(/^(\d{4}-\d{2}-\d{2})第(.+?)節$/);
+    if (match) {
+      const dateStr = match[1];
+      const periodsStr = match[2];
+      const periodNumbers = periodsStr.split(/[、,]/).map(p => parseInt(p.trim(), 10)).filter(p => !isNaN(p));
+      dateMap.set(dateStr, periodNumbers);
+    } else {
+      const dateMatch = part.match(/^(\d{4}-\d{2}-\d{2})/);
+      if (dateMatch) {
+        dateMap.set(dateMatch[1], []);
+      }
+    }
+  });
+
+  const rows = [];
+  dateMap.forEach((periods, date) => {
+    rows.push({ date: date, periods: periods });
+  });
+  return rows;
+}
+
+function buildClassTimeString(rows) {
+  const dateMap = new Map();
+  
+  rows.forEach(r => {
+    if (!r.date) return;
+    if (r.periods && r.periods.length > 0) {
+      dateMap.set(r.date, r.periods);
+    } else {
+      dateMap.delete(r.date);
+    }
+  });
+
+  const parts = [];
+  dateMap.forEach((periods, date) => {
+    const sorted = [...periods].sort((a, b) => a - b);
+    parts.push(`${date}第${sorted.join('、')}節`);
+  });
+  return parts.join('；');
+}
+
+function getDayOfWeek(dateStr) {
+  if (!dateStr) return -1;
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return -1;
+  const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  return d.getDay();
+}
+
+function handleConflictCheckClick() {
+  document.getElementById("scheduleRightTop").innerHTML = ""; 
+  
+  const btn = document.getElementById("btnConflictCheck");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 檢查中...';
+  
+  document.getElementById("scheduleLeftTitle").textContent = "衝堂檢查報告";
+  
+  callBackendAPI({ action: "getClassTimesData" }, function(response) {
+    btn.disabled = false;
+    btn.textContent = "衝堂檢查";
+    
+    if (!response.success) {
+      alert("載入資料失敗: " + response.message);
+      return;
+    }
+    
+    globalScheduleSessionData = response.sessionData || [];
+    globalImportantDates = response.importantDates || [];
+    
+    runConflictAnalysis();
+  }, function(error) {
+    btn.disabled = false;
+    btn.textContent = "衝堂檢查";
+    alert("連線錯誤: " + error.message);
+  });
+}
+
+function runConflictAnalysis() {
+  const container = document.getElementById("scheduleLeftContent");
+  
+  if (globalScheduleSessionData.length === 0) {
+    container.innerHTML = '<div class="alert alert-warning text-center">目前尚無班次排課資料。</div>';
+    return;
+  }
+  
+  const timeSlotMap = {}; 
+  
+  globalScheduleSessionData.forEach(sessionItem => {
+    const sName = sessionItem.session;
+    const scheduleRows = parseClassTimeString(sessionItem.classTime);
+    
+    scheduleRows.forEach(row => {
+      if (row.date && row.periods) {
+        row.periods.forEach(p => {
+          const key = `${row.date}_第${p}節`;
+          if (!timeSlotMap[key]) timeSlotMap[key] = [];
+          timeSlotMap[key].push(sName);
+        });
+      }
+    });
+  });
+  
+  const conflictList = [];
+  Object.keys(timeSlotMap).sort().forEach(key => {
+    const sessions = timeSlotMap[key];
+    if (sessions.length > 1) {
+      const [dateStr, periodStr] = key.split('_');
+      conflictList.push({
+        date: dateStr,
+        period: periodStr,
+        sessions: sessions
+      });
+    }
+  });
+  
+  if (conflictList.length === 0) {
+    container.innerHTML = `
+      <div class="alert alert-success text-center py-4 my-3">
+        <h5 class="fw-bold text-success mb-2">✓ 未發現時間重覆 (無衝堂)！</h5>
+        <p class="mb-0 text-muted small">所有開課班次的上課時間皆已錯開。</p>
+      </div>`;
+  } else {
+    let html = `
+      <div class="alert alert-danger mb-3">
+        <strong>⚠️ 發現 ${conflictList.length} 處班次時間重覆 (衝堂)！</strong>
+        <p class="mb-0 small">以下時段有兩個（含）以上的班次排在同一時間：</p>
+      </div>
+      <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+        <table class="table table-bordered align-middle bg-white">
+          <thead class="table-light text-center sticky-top">
+            <tr>
+              <th style="width: 30%;">日期</th>
+              <th style="width: 25%;">節次</th>
+              <th style="width: 45%;">衝堂班次</th>
+            </tr>
+          </thead>
+          <tbody>`;
+          
+    conflictList.forEach(item => {
+      html += `
+        <tr>
+          <td class="text-center fw-bold text-dark">${item.date}</td>
+          <td class="text-center fw-bold text-primary">${item.period}</td>
+          <td class="text-start text-danger fw-bold">${item.sessions.join('、')}</td>
+        </tr>`;
+    });
+    
+    html += `
+          </tbody>
+        </table>
+      </div>`;
+    container.innerHTML = html;
+  }
+}
+
 // ==========================================
 // 6. 通用 UI 切換與輔助函式
 // ==========================================
@@ -888,7 +1403,7 @@ function hideAllWorkZones() {
 }
 
 function toggleActionButtons(disabled, spinnerStyle = 'primary', text = '') {
-  const ids = ["btnConvert", "btnConsolidate", "btnCourse", "btnSchedule"];
+  const ids = ["btnConvert", "btnConsolidate", "btnCourse", "btnSchedule", "btnFee"];
   ids.forEach(id => {
     const btn = document.getElementById(id);
     if (btn) btn.disabled = disabled;
