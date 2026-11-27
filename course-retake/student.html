@@ -106,9 +106,9 @@
             <th id="th-select" style="width: 70px;" class="text-center">選取</th>
             <th>年級/學期</th>
             <th>科目名稱</th>
-            <th>學分</th>
-            <th>科目狀態</th>
-            <th>目前申請狀況</th>
+            <th class="text-center">學分</th>
+            <th class="text-center">科目狀態</th>
+            <th class="text-center">目前申請狀況</th>
           </tr>
         </thead>
         <tbody id="course-tbody">
@@ -271,7 +271,7 @@
         <td>${course.grade} / ${course.semester}學期</td>
         <td class="fw-bold">${course.subject}</td>
         <td class="text-center">${course.credit}</td>
-        <td>
+        <td class="text-center">
           ${statusDisplayHtml}
         </td>
         <td class="text-center fw-bold text-nowrap" id="status-text-${index}">
